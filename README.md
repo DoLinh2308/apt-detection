@@ -1,2 +1,1 @@
-# apt-detection
-![alt text](image.png)
+# Xây dựng mô hình phát hiện tấn công APT
