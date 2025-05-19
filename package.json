@@ -1,0 +1,21 @@
+{
+  "name": "apt-detector-app",
+  "version": "1.0.0",
+  "description": "APT Detector using Electron and Python",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "dtlinh",
+  "license": "ISC",
+  "devDependencies": {
+    "csv-parser": "^3.2.0",
+    "electron": "^35.1.5"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.9",
+    "systeminformation": "^5.25.11"
+  }
+}

@@ -1,4 +1,7 @@
 /ai_model/dataset
-/web_project
 /venv
-/.idea
+/.vscode
+/.env
+/.venv
+__pycache__
+/node_modules
