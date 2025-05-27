@@ -4,10 +4,6 @@ import numpy as np
 import logging
 
 def align_features(df, expected_features):
-    """
-    Aligns DataFrame columns with the list of features expected by the model.
-    Adds missing columns with 0, removes extra columns. Ensures correct order.
-    """
     logging.info(f"Aligning DataFrame columns with {len(expected_features)} expected features...")
     current_columns = df.columns.tolist()
     expected_set = set(expected_features)
@@ -19,15 +15,12 @@ def align_features(df, expected_features):
     if missing_features:
         logging.warning(f"Missing {len(missing_features)} expected features: {missing_features}. Adding them with value 0.")
         for col in missing_features:
-            df[col] = 0.0 # Add missing columns with default value
+            df[col] = 0.0 
 
     if extra_features:
         logging.info(f"Found {len(extra_features)} extra columns not needed by the model: {extra_features[:10]}...") # Log first few
-        # No need to drop, just select the expected ones
 
-    # Select columns in the exact order expected by the model/scaler
     try:
-        # Ensure all expected features are now present before selection
         if not expected_set.issubset(set(df.columns)):
              raise ValueError("Not all expected features are present in the DataFrame even after adding missing ones.")
         df_aligned = df[expected_features].astype(float) # Select and ensure float type
@@ -46,42 +39,26 @@ def align_features(df, expected_features):
 
 
 def make_predictions(df_aligned, model, scaler):
-    """
-    Scales the aligned data and makes predictions using the model.
-
-    Args:
-        df_aligned: DataFrame with features aligned and ordered correctly.
-        model: Loaded prediction model.
-        scaler: Loaded scaler.
-
-    Returns:
-        Tuple: (predictions_array, probabilities_array or None)
-    """
     if df_aligned is None or df_aligned.empty:
         logging.warning("Prediction skipped: Aligned DataFrame is None or empty.")
-        return np.array([]), None # Return empty array and None
+        return np.array([]), None
 
     logging.info(f"Scaling data ({df_aligned.shape[0]} rows, {df_aligned.shape[1]} features)...")
     try:
-        # Check for NaN/Inf *before* scaling, although preprocessor should handle it
         if df_aligned.isnull().values.any() or np.isinf(df_aligned.values).any():
              logging.error("NaN or Inf values detected in data just before scaling. Check preprocessing steps.")
-             # Log details
-             # print("NaN counts:\n", df_aligned.isnull().sum()[df_aligned.isnull().sum() > 0])
-             # print("Inf counts:\n", np.isinf(df_aligned).sum()[np.isinf(df_aligned).sum() > 0])
-             return None, None # Indicate failure
+             return None, None 
 
         X_scaled = scaler.transform(df_aligned)
         logging.info("Data scaling successful.")
     except ValueError as e:
         logging.error(f"ValueError during scaling: {e}. Check scaler compatibility and data.")
-        # Check if it's a feature number mismatch (should be caught by align_features)
         n_features_in_scaler = getattr(scaler, 'n_features_in_', 'N/A')
         logging.error(f"  Data shape: {df_aligned.shape}, Scaler expected features: {n_features_in_scaler}")
-        return None, None # Indicate failure
+        return None, None 
     except Exception as e:
         logging.error(f"Unexpected error during scaling: {e}", exc_info=True)
-        return None, None # Indicate failure
+        return None, None
 
     logging.info("Making predictions...")
     try:
@@ -228,7 +205,6 @@ def make_predictions(df_aligned, model, scaler):
         logging.error(f"Unexpected error during scaling: {e}", exc_info=True)
         return None, None # Indicate failure
 
-    # ... (phần predict giữ nguyên) ...
     logging.info("Making predictions...")
     try:
         predictions = model.predict(X_scaled)

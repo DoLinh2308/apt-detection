@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "chart.js": "^4.4.9",
+    "electron-store": "^10.0.1",
     "systeminformation": "^5.25.11"
   }
 }

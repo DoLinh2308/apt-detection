@@ -113,48 +113,35 @@ def start_capture():
     writer = None
 
     try:
-        # Open CSV file for writing
-        # Use 'w' to overwrite existing file each time capture starts
         with open(config.OUTPUT_CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=config.CSV_HEADER)
             writer.writeheader()
             print("CSV header written.")
-            csvfile.flush() # Ensure header is written immediately
-
+            csvfile.flush()
             last_timeout_check = time.time()
             start_sniff_time = time.time()
-
-            # Define the callback function for sniff
             def packet_callback_wrapper(packet):
                 nonlocal last_timeout_check, writer, csvfile, start_sniff_time
-                global packet_count # Need global to modify counter
-
+                global packet_count
                 process_packet(packet, active_flows)
                 packet_count += 1
                 current_time = time.time()
-
-                # Optional: Print progress
                 elapsed = current_time - start_sniff_time
                 remaining = max(0, config.CAPTURE_DURATION - elapsed)
                 print(f"\rProcessed: {packet_count} packets. Active flows: {len(active_flows)}. Time left: {remaining:.0f}s", end="")
-
-                # Periodic check for flow timeouts (e.g., every 1000 packets or 5 seconds)
                 if packet_count % 1000 == 0 or current_time - last_timeout_check > 5.0:
                     if check_flow_timeouts(writer, current_time):
-                        csvfile.flush() # Flush file if something was written
+                        csvfile.flush() 
                     last_timeout_check = current_time
-
-            # Start sniffing
             print(f"\nSniffing for {config.CAPTURE_DURATION} seconds...")
             sniff(prn=packet_callback_wrapper, store=False, iface=config.INTERFACE, timeout=config.CAPTURE_DURATION)
 
             print(f"\n\nCapture finished after {config.CAPTURE_DURATION} seconds or timeout.")
             print(f"Total packets processed: {packet_count}")
 
-            # Process any remaining flows after sniffing stops
             if writer and csvfile and not csvfile.closed:
-                 process_remaining_flows(writer)
-                 csvfile.flush()
+                process_remaining_flows(writer)
+                csvfile.flush()
 
     except PermissionError:
         print("\nERROR: Permission denied.", file=sys.stderr)

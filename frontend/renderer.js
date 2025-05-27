@@ -1,606 +1,705 @@
-// Khởi tạo Chart.js khi DOM sẵn sàng
-document.addEventListener('DOMContentLoaded', () => {
-    const contentArea = document.getElementById('main-content');
-    const navLinks = {
-        dashboard: document.getElementById('nav-dashboard'),
-        alert: document.getElementById('nav-alert'),
-        network: document.getElementById('nav-network'),
-        log: document.getElementById('nav-log'),
-        setting: document.getElementById('nav-setting')
-    };
+// frontend/renderer.js
 
-    async function loadPage(pageName) {
-        try {
-            let filePath = `${pageName}.html`;
-            const response = await fetch(filePath);
-            if (!response.ok) {
-                // Handle error, e.g., show a 404 message in contentArea
-                contentArea.innerHTML = `<p>Error: Could not load ${pageName}.html. Status: ${response.status}</p>`;
-                console.error(`Failed to load ${filePath}: ${response.status}`);
-                return;
-            }
-            const htmlContent = await response.text();
-            contentArea.innerHTML = htmlContent;
-            updateActiveLink(pageName);
+// --- GLOBAL CONFIG & UTILITIES ---
+const MAX_SYSTEM_METRIC_POINTS = 30; // Max data points for system metrics chart
 
-            if (pageName === 'dashboard') {
-                initializeDashboardElements();
-                initializeOrReinitializeCharts(); // Initialize/Reinitialize charts AFTER new HTML is loaded
-                addDashboardEventListeners();
-            }
-        } catch (error) {
-            console.error('Lỗi khi tải trang:', error);
-            contentArea.innerHTML = `<p>Error loading page: ${error.message}</p>`;
-        }
-    }
-
-    function updateActiveLink(activePage) {
-        for (const id in navLinks) {
-            if (navLinks[id]) {
-                navLinks[id].classList.remove('active');
-            }
-        }
-        if (navLinks[activePage]) {
-            navLinks[activePage].classList.add('active');
-        }
-    }
-
-    // Gán sự kiện click
-    if (navLinks.dashboard) navLinks.dashboard.addEventListener('click', (e) => { e.preventDefault(); loadPage('dashboard'); });
-    if (navLinks.alert) navLinks.alert.addEventListener('click', (e) => { e.preventDefault(); loadPage('alert'); });
-    if (navLinks.network) navLinks.network.addEventListener('click', (e) => { e.preventDefault(); loadPage('network'); });
-    if (navLinks.log) navLinks.log.addEventListener('click', (e) => { e.preventDefault(); loadPage('log'); });
-    if (navLinks.setting) navLinks.setting.addEventListener('click', (e) => { e.preventDefault(); loadPage('setting'); });
-
-    // Tải trang mặc định
-    loadPage('dashboard');
-});
-
-// --- DOM Element References (dynamically set in initializeDashboardElements) ---
-let detectionStatusElement, detectionStatusText, startAnalysisButton;
+// --- DOM Element References (sẽ được khởi tạo trong các hàm page-specific) ---
+let statusArea; // Log debug
+// Dashboard elements
+let detectionStatusElement, detectionStatusText, startAnalysisButton, stopAnalysisButton;
 let totalThreatsElement, unresolvedThreatsElement, criticalAlertsElement;
 let systemStatusTextElement, cpuUsageElement, memoryUsageElement, networkUsageElement;
 let recentAlertsTableBody;
-let statusArea; // Để ẩn log debug
 
-// --- Chart Variables ---
-let threatTrendsChart = null;
-let systemMetricsChart = null;
-// Add new chart variables here if you create more charts e.g.
-// let aptProtocolChart = null;
+// --- NAVIGATION & PAGE LOADING ---
+const Navigation = {
+    contentArea: null,
+    navLinks: {},
+    activePage: null,
 
-const MAX_METRIC_POINTS = 30; // Giới hạn số điểm dữ liệu hiển thị cho system metrics
+    init: function() {
+        this.contentArea = document.getElementById('main-content');
+        this.navLinks = {
+            dashboard: document.getElementById('nav-dashboard'),
+            alert: document.getElementById('nav-alert'),
+            network: document.getElementById('nav-network'),
+            log: document.getElementById('nav-log'),
+            setting: document.getElementById('nav-setting')
+        };
 
-// This function should be called AFTER the dashboard HTML is loaded
-function initializeDashboardElements() {
-    console.log("Attempting to initialize dashboard elements...");
-    detectionStatusElement = document.getElementById('detectionStatus');
-    if (detectionStatusElement) {
-        detectionStatusText = detectionStatusElement.querySelector('.status-text');
-    } else {
-        console.warn("'detectionStatus' element not found on current page.");
-    }
-
-    startAnalysisButton = document.getElementById('startAnalysisButton');
-    if (!startAnalysisButton) console.warn("'startAnalysisButton' not found.");
-
-    const recentAlertsTable = document.getElementById('recentAlertsTable');
-    if (recentAlertsTable) {
-        recentAlertsTableBody = recentAlertsTable.getElementsByTagName('tbody')[0];
-    } else {
-        console.warn("'recentAlertsTable' not found.");
-    }
-
-    totalThreatsElement = document.getElementById('totalThreats');
-    criticalAlertsElement = document.getElementById('criticalAlerts');
-    unresolvedThreatsElement = document.getElementById('unresolvedThreats');
-    systemStatusTextElement = document.getElementById('systemStatus');
-    cpuUsageElement = document.getElementById('cpuUsage');
-    memoryUsageElement = document.getElementById('memoryUsage');
-    networkUsageElement = document.getElementById('networkUsage');
-    statusArea = document.getElementById('statusArea');
-
-    console.log("Dashboard elements initialization attempt complete.");
-}
-
-function addDashboardEventListeners() {
-    if (startAnalysisButton) {
-        // Simple way to avoid multiple listeners if this function is called again:
-        // clone and replace the button.
-        const newButton = startAnalysisButton.cloneNode(true);
-        startAnalysisButton.parentNode.replaceChild(newButton, startAnalysisButton);
-        startAnalysisButton = newButton; // Update reference
-
-        startAnalysisButton.addEventListener('click', () => {
-            console.log("Start Analysis button clicked!");
-            if (detectionStatusText && detectionStatusElement) updateDetectionStatus(true, 'Starting...'); // Make sure element exists
-            if (recentAlertsTableBody) clearTable(recentAlertsTableBody);
-
-            if (window.electronAPI && typeof window.electronAPI.startAnalysis === 'function') {
-                window.electronAPI.startAnalysis();
-            } else {
-                console.error("electronAPI.startAnalysis is not available.");
-                // Provide feedback to user if API is not available
-                if (detectionStatusText && detectionStatusElement) updateDetectionStatus(false, 'Error: API unavailable');
-                return;
-            }
-            startAnalysisButton.disabled = true;
-            startAnalysisButton.textContent = "Analysis Running...";
-        });
-        console.log("Event listener added to startAnalysisButton.");
-    } else {
-        console.warn("startAnalysisButton not found, cannot add event listener.");
-    }
-}
-
-
-// --- IPC Handlers ---
-if (window.electronAPI) {
-    window.electronAPI.onStatusUpdate((message) => {
-        console.log("Status Update:", message);
-        if (statusArea) {
-            statusArea.textContent += message + '\n';
-            statusArea.scrollTop = statusArea.scrollHeight;
-        }
-
-        if (detectionStatusElement && detectionStatusText) { // Check elements exist
-            if (message.includes("Starting Network Analysis Pipeline")) {
-                updateDetectionStatus(true, 'Detection Active');
-            } else if (message.includes("Network Analysis Pipeline Finished") || message.includes("LỖI")) {
-                updateDetectionStatus(false, message.includes("LỖI") ? 'Error Occurred' : 'Detection Inactive');
-                if (startAnalysisButton) {
-                    startAnalysisButton.disabled = false;
-                    startAnalysisButton.textContent = "Start Analysis";
-                }
-            } else if (message.includes("Starting Prediction Module")) {
-                updateDetectionStatus(true, 'Analyzing...');
+        for (const pageName in this.navLinks) {
+            if (this.navLinks[pageName]) {
+                this.navLinks[pageName].addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.loadPage(pageName);
+                });
             }
         }
-    });
+    },
 
-    window.electronAPI.onClearResults(() => {
-        if (recentAlertsTableBody) clearTable(recentAlertsTableBody);
-        if (totalThreatsElement) totalThreatsElement.textContent = '0';
-        if (criticalAlertsElement) criticalAlertsElement.textContent = '0';
-        if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = '0 unresolved threats';
-
-        // Clear charts too
-        if (document.getElementById('threatTrendsChart')) {
-            updateThreatTrendsChart({ labels: [], critical: [], high: [], medium: [], low: [] });
-        }
-        // If you add more charts, clear them here e.g.
-        // if (document.getElementById('aptProtocolChart')) {
-        //    updateAptProtocolChart({ labels: [], data: [] });
-        // }
-    });
-
-    window.electronAPI.onResultsData((data) => {
-        console.log("Results Data Received:", data);
-
-        const currentTotalThreats = document.getElementById('totalThreats');
-        const currentCriticalAlerts = document.getElementById('criticalAlerts');
-        const currentUnresolvedThreats = document.getElementById('unresolvedThreats');
-        const currentRecentAlertsTableBody = document.getElementById('recentAlertsTable')?.getElementsByTagName('tbody')[0];
-        const normalTraffic = document.getElementById('normalTraffic');
-        const suspiciousTraffic = document.getElementById('suspiciousTraffic');
-        const maliciousTraffic = document.getElementById('maliciousTraffic');
-        const activeAttacks = document.getElementById('activeAttacks');
-        const countries = document.getElementById('countries');
-        const totalToday = document.getElementById('totalToday');
-
-        if (currentTotalThreats) currentTotalThreats.textContent = data.totalThreats !== undefined ? data.totalThreats : 'N/A';
-        if (currentCriticalAlerts) currentCriticalAlerts.textContent = data.criticalAlerts !== undefined ? data.criticalAlerts : 'N/A';
-        if (currentUnresolvedThreats) currentUnresolvedThreats.textContent = `${data.unresolvedThreats || data.totalThreats || 0} total threats detected`;
-        if (normalTraffic) normalTraffic.textContent = '1.423 GB'; // Example data
-        if (suspiciousTraffic) suspiciousTraffic.textContent = '62 MB'; // Example data
-        if (maliciousTraffic) maliciousTraffic.textContent = '12 MB'; // Example data
-        if (activeAttacks) activeAttacks.textContent = '24'; // Example data
-        if (countries) countries.textContent = '8'; // Example data
-        if (totalToday) totalToday.textContent = '156'; // Example data
-
-        if (currentRecentAlertsTableBody) updateRecentAlertsTable(data.suspicious, currentRecentAlertsTableBody);
-
-        if (document.getElementById('threatTrendsChart')) {
-            if (data.suspicious && Array.isArray(data.suspicious)) {
-                const trendData = processCsvDataForThreatTrendsChart(data.suspicious);
-                updateThreatTrendsChart(trendData);
-            }
-        }
-
-        if (document.getElementById('trafficAnalysisChart') && trafficAnalysisChart) {
-            // Update with sample data (replace with actual logic)
-            trafficAnalysisChart.data.datasets[0].data = [100, 100, 100, 100, 120, 130, 140, 141, 142, 142, 142, 1423];
-            trafficAnalysisChart.data.datasets[1].data = [0, 0, 0, 0, 5, 10, 15, 20, 25, 30, 40, 62];
-            trafficAnalysisChart.data.datasets[2].data = [0, 0, 0, 0, 2, 4, 6, 8, 10, 11, 11, 12];
-            trafficAnalysisChart.update();
-        }
-
-        if (detectionStatusElement && detectionStatusText) {
-            updateDetectionStatus(false, 'Analysis Complete');
-            if (startAnalysisButton) {
-                startAnalysisButton.disabled = false;
-                startAnalysisButton.textContent = "Start Analysis";
-            }
-        }
-    });
-
-    window.electronAPI.onSystemMetrics((metrics) => {
-        // console.log("Received system metrics:", metrics);
-        const sysStatTextEl = document.getElementById('systemStatus');
-        const cpuUseEl = document.getElementById('cpuUsage');
-        const memUseEl = document.getElementById('memoryUsage');
-        const netUseEl = document.getElementById('networkUsage');
-
-        if (sysStatTextEl) sysStatTextEl.textContent = "Active";
-        if (cpuUseEl) cpuUseEl.textContent = metrics.cpu !== undefined ? `${metrics.cpu.toFixed(1)}%` : '--%';
-        if (memUseEl) memUseEl.textContent = metrics.mem !== undefined ? `${metrics.mem.toFixed(1)}%` : '--%';
-        if (netUseEl) netUseEl.textContent = metrics.net !== undefined ? `${(metrics.net / 1024).toFixed(1)} KB/s` : '-- KB/s';
-
-        if (document.getElementById('systemMetricsChart')) {
-            const netKBps = metrics.net !== undefined ? (metrics.net / 1024) : null;
-            updateSystemMetricsChartWithAllMetrics(metrics.timestamp, metrics.cpu, metrics.mem, netKBps);
-        }
-    });
-
-} else {
-    console.error("window.electronAPI is not defined. IPC handlers will not be set up.");
-}
-
-
-// --- UI Update Functions ---
-function updateDetectionStatus(isActive, text) {
-    if (!detectionStatusElement || !detectionStatusText) { // Check if elements are available
-        console.warn("Detection status elements not found, cannot update status.");
-        return;
-    }
-    detectionStatusText.textContent = text;
-    if (isActive) {
-        detectionStatusElement.classList.remove('inactive');
-        detectionStatusElement.classList.add('active');
-    } else {
-        detectionStatusElement.classList.remove('active');
-        detectionStatusElement.classList.add('inactive');
-    }
-}
-
-function clearTable(tbody) {
-    if (!tbody) return;
-    tbody.innerHTML = '';
-}
-
-function updateRecentAlertsTable(alerts, tableBody) { // Pass tableBody as argument
-    if (!tableBody) {
-        console.warn("Recent alerts table body not found, cannot update.");
-        return;
-    }
-    clearTable(tableBody);
-
-    if (!alerts || alerts.length === 0) {
-        const row = tableBody.insertRow();
-        const cell = row.insertCell();
-        cell.colSpan = 6; // Adjust to your table's column count
-        cell.textContent = 'No suspicious activities detected.';
-        cell.style.textAlign = 'center';
-        cell.style.color = 'var(--text-muted)';
-        return;
-    }
-
-    const alertsToShow = alerts.slice(0, 10); // Show top 10
-
-    alertsToShow.forEach(alert => {
-        const row = tableBody.insertRow();
-        const severityDetails = getSeverityDetailsFromAlert(alert); // Use helper for severity
-
-        row.insertCell().innerHTML = `<span class="severity-badge ${severityDetails.class}">${severityDetails.text}</span>`;
-        row.insertCell().textContent = alert.Prediction || 'N/A';
-        row.insertCell().textContent = alert['Src IP'] || alert['Source IP'] || 'N/A';
-        row.insertCell().textContent = alert['Dst IP'] || alert['Destination IP'] || 'N/A';
-        row.insertCell().textContent = alert.Timestamp ? new Date(alert.Timestamp).toLocaleString() : 'N/A';
-        row.insertCell().innerHTML = `<a href="#" class="details-link" data-flowid="${alert['Flow ID'] || ''}">Details</a>`;
-    });
-}
-
-// Helper function to determine severity text and class from an alert object
-function getSeverityDetailsFromAlert(alert) {
-    let severityText = 'Low';
-    let severityClass = 'severity-low';
-    const prediction = alert.Prediction ? String(alert.Prediction).toLowerCase() : '';
-    // Assuming Prediction_Probability is a field in your CSV data (0.0 to 1.0)
-    const probability = typeof alert.Prediction_Probability === 'number' ? alert.Prediction_Probability : 0;
-
-    // Customize this logic based on your specific prediction values and probability thresholds
-    // This is just an example matching your original table logic
-    if (prediction.includes('critical') || (prediction !== 'benign' && probability > 0.9)) {
-        severityText = 'Critical';
-        severityClass = 'severity-critical';
-    } else if (prediction.includes('high') || (prediction !== 'benign' && probability > 0.7)) {
-        severityText = 'High';
-        severityClass = 'severity-high';
-    } else if (prediction.includes('medium') || (prediction !== 'benign' && probability > 0.5)) {
-        severityText = 'Medium';
-        severityClass = 'severity-medium';
-    } else if (prediction === 'benign' || prediction === '') {
-        // For benign or unclassified that doesn't meet other criteria.
-        // You might want a different handling for benign, e.g., not showing in "threats" table
-        // or a specific "Informational" severity.
-        severityText = 'Info'; // Or keep 'Low' if all non-benign start as Low
-        severityClass = 'severity-info'; // Or 'severity-low'
-    }
-    // If it's not benign and didn't match higher severities, it defaults to Low.
-
-    return { text: severityText, class: severityClass, level: severityText }; // level can be used for aggregation
-}
-
-
-// --- Chart Functions ---
-// Add new chart variable
-let trafficAnalysisChart = null;
-
-// Update initializeOrReinitializeCharts function
-function initializeOrReinitializeCharts() {
-    destroyCharts();
-
-    // Existing Threat Trends Chart
-    const ctxTrendsElement = document.getElementById('threatTrendsChart');
-    if (ctxTrendsElement) {
-        const ctxTrends = ctxTrendsElement.getContext('2d');
-        threatTrendsChart = new Chart(ctxTrends, {
-            type: 'bar',
-            data: {
-                labels: [], // e.g., Dates or time periods
-                datasets: [
-                    { label: 'Critical', data: [], backgroundColor: 'var(--critical-color, #dc3545)', stack: 'Severity' },
-                    { label: 'High', data: [], backgroundColor: 'var(--high-color, #fd7e14)', stack: 'Severity' },
-                    { label: 'Medium', data: [], backgroundColor: 'var(--medium-color, #ffc107)', stack: 'Severity' },
-                    { label: 'Low', data: [], backgroundColor: 'var(--low-color, #17a2b8)', stack: 'Severity' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { color: 'var(--text-muted, #6c757d)' } },
-                    title: { display: true, text: 'Threat Detections Over Time', color: 'var(--text-primary, #333)' }
-                },
-                scales: {
-                    x: { stacked: true, ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' } },
-                    y: { stacked: true, ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' }, beginAtZero: true }
-                }
-            }
-        });
-        console.log("Threat Trends Chart initialized.");
-    }
-
-    // Existing System Metrics Chart
-    const ctxMetricsElement = document.getElementById('systemMetricsChart');
-    if (ctxMetricsElement) {
-        const ctxMetrics = ctxMetricsElement.getContext('2d');
-        systemMetricsChart = new Chart(ctxMetrics, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'CPU Usage (%)', data: [], borderColor: 'var(--cpu-color, rgba(255, 99, 132, 1))', backgroundColor: 'var(--cpu-bg-color, rgba(255, 99, 132, 0.2))', fill: true, tension: 0.1 },
-                    { label: 'Memory Usage (%)', data: [], borderColor: 'var(--mem-color, rgba(54, 162, 235, 1))', backgroundColor: 'var(--mem-bg-color, rgba(54, 162, 235, 0.2))', fill: true, tension: 0.1 },
-                    { label: 'Network Usage (KB/s)', data: [], borderColor: 'var(--net-color, rgba(75, 192, 192, 1))', backgroundColor: 'var(--net-bg-color, rgba(75, 192, 192, 0.2))', fill: true, tension: 0.1 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { color: 'var(--text-muted, #6c757d)' } },
-                    title: { display: true, text: 'System Resource Usage', color: 'var(--text-primary, #333)' }
-                },
-                scales: {
-                    x: { ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' } },
-                    y: { ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' }, beginAtZero: true, suggestedMax: 100 }
-                }
-            }
-        });
-        console.log("System Metrics Chart initialized.");
-    }
-
-    // New Traffic Analysis Chart
-    const ctxTrafficElement = document.getElementById('trafficAnalysisChart');
-    if (ctxTrafficElement) {
-        const ctxTraffic = ctxTrafficElement.getContext('2d');
-        trafficAnalysisChart = new Chart(ctxTraffic, {
-            type: 'bar',
-            data: {
-                labels: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00'],
-                datasets: [
-                    { label: 'Normal', data: [100, 100, 100, 100, 120, 130, 140, 141, 142, 142, 142, 1423], backgroundColor: '#4caf50', stack: 'Traffic' },
-                    { label: 'Suspicious', data: [0, 0, 0, 0, 5, 10, 15, 20, 25, 30, 40, 62], backgroundColor: '#ffc107', stack: 'Traffic' },
-                    { label: 'Malicious', data: [0, 0, 0, 0, 2, 4, 6, 8, 10, 11, 11, 12], backgroundColor: '#dc3545', stack: 'Traffic' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { color: 'var(--text-muted, #6c757d)' } },
-                    title: { display: true, text: 'Traffic Analysis', color: 'var(--text-primary, #333)' }
-                },
-                scales: {
-                    x: { stacked: true, ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' } },
-                    y: { stacked: true, ticks: { color: 'var(--text-muted, #6c757d)' }, grid: { color: 'var(--border-color, #dee2e6)' }, beginAtZero: true }
-                }
-            }
-        });
-        console.log("Traffic Analysis Chart initialized.");
-    }
-}
-// Update destroyCharts to include trafficAnalysisChart
-function destroyCharts() {
-    if (threatTrendsChart) {
-        threatTrendsChart.destroy();
-        threatTrendsChart = null;
-    }
-    if (systemMetricsChart) {
-        systemMetricsChart.destroy();
-        systemMetricsChart = null;
-    }
-    if (trafficAnalysisChart) {
-        trafficAnalysisChart.destroy();
-        trafficAnalysisChart = null;
-    }
-}
-/**
- * Processes raw CSV data to aggregate threat counts by severity over time periods.
- * @param {Array<Object>} csvRows - Array of objects, where each object is a row from the CSV.
- * Each row must have 'Timestamp' and other features needed for severity.
- * @param {string} timeWindow - 'daily', 'hourly' (currently only 'daily' implemented).
- * @returns {Object} - { labels: [], critical: [], high: [], medium: [], low: [] }
- */
-function processCsvDataForThreatTrendsChart(csvRows, timeWindow = 'daily') {
-    if (!csvRows || csvRows.length === 0) {
-        return { labels: [], critical: [], high: [], medium: [], low: [] };
-    }
-
-    const aggregatedData = {}; // Key: YYYY-MM-DD (for daily), Value: { Critical: 0, High: 0, ... }
-
-    csvRows.forEach(row => {
-        if (!row.Timestamp) {
-            console.warn("CSV row missing Timestamp:", row);
-            return; // Skip if no timestamp
-        }
-
-        const severityDetails = getSeverityDetailsFromAlert(row); // Use the helper
-        if (severityDetails.level === 'Info' || !severityDetails.level) { // Don't count 'Info' or unclassified in threat trends
+    loadPage: async function(pageName) {
+        if (!this.contentArea) {
+            console.error("Content area not initialized for navigation.");
             return;
         }
-
-        let dateKey;
         try {
-            const timestamp = new Date(row.Timestamp);
-            if (isNaN(timestamp.getTime())) { // Check for invalid date
-                console.warn("Invalid timestamp in CSV row:", row.Timestamp, row);
+            console.log(`Loading page: ${pageName}`);
+            const response = await fetch(`${pageName}.html`);
+            if (!response.ok) {
+                this.contentArea.innerHTML = `<p>Error: Could not load ${pageName}.html. Status: ${response.status}</p>`;
+                console.error(`Failed to load ${pageName}.html: ${response.status}`);
                 return;
             }
-            // For daily aggregation
-            dateKey = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
-            // TODO: Implement hourly or other timeWindows if needed
-        } catch (e) {
-            console.warn("Error parsing timestamp from CSV row:", row.Timestamp, e);
+            const htmlContent = await response.text();
+            this.contentArea.innerHTML = htmlContent;
+            this.updateActiveLink(pageName);
+            this.activePage = pageName;
+
+            // Call page-specific initializers
+            if (pageName === 'dashboard') {
+                PageInitializers.dashboard();
+            } else if (pageName === 'setting') {
+                PageInitializers.setting();
+            }
+            // Re-apply theme after loading new content, especially if charts are involved
+            ThemeManager.applyCurrentTheme();
+
+        } catch (error) {
+            console.error(`Error loading page ${pageName}:`, error);
+            this.contentArea.innerHTML = `<p>Error loading page: ${error.message}</p>`;
+        }
+    },
+
+    updateActiveLink: function(activePage) {
+        for (const id in this.navLinks) {
+            if (this.navLinks[id]) {
+                this.navLinks[id].classList.remove('active');
+            }
+        }
+        if (this.navLinks[activePage]) {
+            this.navLinks[activePage].classList.add('active');
+        }
+    }
+};
+
+// --- THEME MANAGEMENT ---
+const ThemeManager = {
+    currentTheme: 'dark', // Default theme
+
+    applyTheme: function(themeName) {
+        document.body.classList.remove('light-theme', 'dark-theme');
+        if (themeName === 'light') {
+            document.body.classList.add('light-theme');
+        } else {
+            document.body.classList.add('dark-theme');
+        }
+        this.currentTheme = themeName;
+        console.log(`Theme applied: ${themeName}`);
+
+        if (Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()) {
+             console.log("Reinitializing charts for new theme...");
+             ChartManager.initializeAllCharts();
+        }
+    },
+
+    applyCurrentTheme: function() {
+        this.applyTheme(this.currentTheme);
+    },
+
+    loadAndApplySavedTheme: async function() {
+        if (window.electronAPI && typeof window.electronAPI.loadSettings === 'function') {
+            try {
+                const settings = await window.electronAPI.loadSettings();
+                if (settings && settings.theme) {
+                    this.applyTheme(settings.theme);
+                } else {
+                    this.applyTheme('dark'); // Default
+                }
+            } catch (error) {
+                console.error("Failed to load settings for theme:", error);
+                this.applyTheme('dark'); // Default on error
+            }
+        } else {
+            this.applyTheme('dark'); // Default if API not ready
+        }
+    },
+
+    updateThemeSelectElement: function() {
+        const themeSelectElement = document.getElementById('theme-select');
+        if (themeSelectElement) {
+            themeSelectElement.value = this.currentTheme;
+        }
+    }
+};
+
+// --- CHART MANAGEMENT ---
+const ChartManager = {
+    charts: {
+        threatTrends: null,
+        systemMetrics: null,
+        trafficAnalysis: null,
+        aptTypeDistribution: null,
+        topAptSourceIp: null,
+        topAptDestIp: null,
+        aptProtocol: null
+    },
+
+    areChartsInitialized: function() {
+        return !!document.getElementById('threatTrendsChart'); // Check one prominent chart
+    },
+
+    initializeAllCharts: function() {
+        console.log("Attempting to initialize all charts...");
+        this.destroyAllCharts();
+
+        const ctxTrends = document.getElementById('threatTrendsChart')?.getContext('2d');
+        if (ctxTrends) {
+            this.charts.threatTrends = new Chart(ctxTrends, {
+                type: 'bar',
+                data: { labels: [], datasets: [
+                    { label: 'Critical', data: [], backgroundColor: 'var(--critical-color)', stack: 'Severity' },
+                    { label: 'High', data: [], backgroundColor: 'var(--high-color)', stack: 'Severity' },
+                    { label: 'Medium', data: [], backgroundColor: 'var(--medium-color)', stack: 'Severity' },
+                    { label: 'Low', data: [], backgroundColor: 'var(--low-color)', stack: 'Severity' }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Threat Detections Over Time', color: 'var(--text-primary)' } }, scales: { x: { stacked: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { stacked: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' }, beginAtZero: true } } }
+            });
+            console.log("Threat Trends Chart initialized.");
+        }
+
+        const ctxMetrics = document.getElementById('systemMetricsChart')?.getContext('2d');
+        if (ctxMetrics) {
+            this.charts.systemMetrics = new Chart(ctxMetrics, {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'CPU Usage (%)', data: [], borderColor: 'var(--cpu-color)', backgroundColor: 'var(--cpu-bg-color)', fill: true, tension: 0.1 },
+                    { label: 'Memory Usage (%)', data: [], borderColor: 'var(--mem-color)', backgroundColor: 'var(--mem-bg-color)', fill: true, tension: 0.1 },
+                    { label: 'Network Usage (KB/s)', data: [], borderColor: 'var(--net-color)', backgroundColor: 'var(--net-bg-color)', fill: true, tension: 0.1 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'System Resource Usage', color: 'var(--text-primary)' } }, scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' }, beginAtZero: true, suggestedMax: 100 } } }
+            });
+            console.log("System Metrics Chart initialized.");
+        }
+
+        const ctxTraffic = document.getElementById('trafficAnalysisChart')?.getContext('2d');
+        if (ctxTraffic) {
+            this.charts.trafficAnalysis = new Chart(ctxTraffic, {
+                type: 'bar',
+                data: { labels: [], datasets: [
+                    { label: 'Lưu lượng Bình thường', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)', stack: 'scanData' },
+                    { label: 'Lưu lượng Nghi ngờ', data: [], backgroundColor: 'rgba(255, 206, 86, 0.7)', stack: 'scanData' },
+                    { label: 'Lưu lượng Độc hại', data: [], backgroundColor: 'rgba(255, 99, 132, 0.7)', stack: 'scanData' }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Thống Kê Lưu Lượng Qua Các Lần Quét', color: 'var(--text-primary)' } }, scales: { x: { title: {display: true, text: 'Lần Quét', color: 'var(--text-secondary)'}, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: {title: {display: true, text: 'Dung lượng (Units)', color: 'var(--text-secondary)'},  beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
+            });
+            console.log("Traffic Analysis Chart (by Scan) initialized.");
+        }
+
+        const ctxAptType = document.getElementById('aptTypeDistributionChart')?.getContext('2d');
+        if (ctxAptType) {
+            this.charts.aptTypeDistribution = new Chart(ctxAptType, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(255, 99, 132, 0.7)','rgba(54, 162, 235, 0.7)','rgba(255, 206, 86, 0.7)','rgba(75, 192, 192, 0.7)','rgba(153, 102, 255, 0.7)','rgba(255, 159, 64, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Phân bố Loại Tấn Công APT', color: 'var(--text-primary)' } } }
+            });
+            console.log("APT Type Distribution Chart initialized.");
+        }
+
+        const ctxTopSrcIp = document.getElementById('topAptSourceIpChart')?.getContext('2d');
+        if (ctxTopSrcIp) {
+            this.charts.topAptSourceIp = new Chart(ctxTopSrcIp, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)' }]},
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Top IP Nguồn Tấn Công APT', color: 'var(--text-primary)' } }, scales: { x: { beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
+            });
+            console.log("Top APT Source IP Chart initialized.");
+        }
+        const ctxTopDestIp = document.getElementById('topAptDestIpChart')?.getContext('2d');
+        if (ctxTopDestIp) {
+            this.charts.topAptDestIp = new Chart(ctxTopDestIp, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(255, 159, 64, 0.7)' }]},
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Top IP Đích Bị Tấn Công APT', color: 'var(--text-primary)' } }, scales: { x: { beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
+            });
+            console.log("Top APT Destination IP Chart initialized.");
+        }
+        const ctxAptProto = document.getElementById('aptProtocolChart')?.getContext('2d');
+        if (ctxAptProto) {
+            this.charts.aptProtocol = new Chart(ctxAptProto, {
+                type: 'pie',
+                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(153, 102, 255, 0.7)','rgba(255, 159, 64, 0.7)','rgba(201, 203, 207, 0.7)','rgba(54, 162, 235, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Phân bố Giao thức Tấn Công APT', color: 'var(--text-primary)' } } }
+            });
+            console.log("APT Protocol Chart initialized.");
+        }
+    },
+
+    destroyAllCharts: function() {
+        for (const chartKey in this.charts) {
+            if (this.charts[chartKey]) {
+                this.charts[chartKey].destroy();
+                this.charts[chartKey] = null;
+            }
+        }
+        console.log("All charts destroyed.");
+    },
+
+    updateThreatTrends: function(processedTrendData) {
+        const chart = this.charts.threatTrends;
+        if (chart && document.getElementById('threatTrendsChart')) {
+            chart.data.labels = processedTrendData.labels || [];
+            chart.data.datasets[0].data = processedTrendData.critical || [];
+            chart.data.datasets[1].data = processedTrendData.high || [];
+            chart.data.datasets[2].data = processedTrendData.medium || [];
+            chart.data.datasets[3].data = processedTrendData.low || [];
+            chart.update();
+            console.log("Threat Trends Chart updated.");
+        }
+    },
+
+    updateSystemMetrics: function(timestamp, cpu, mem, net) {
+        const chart = this.charts.systemMetrics;
+        if (chart && document.getElementById('systemMetricsChart')) {
+            const label = new Date(timestamp || Date.now()).toLocaleTimeString();
+            chart.data.labels.push(label);
+            chart.data.datasets[0].data.push(cpu !== undefined && cpu !== null ? cpu : 0);
+            chart.data.datasets[1].data.push(mem !== undefined && mem !== null ? mem : 0);
+            chart.data.datasets[2].data.push(net !== undefined && net !== null ? net : 0);
+
+            if (chart.data.labels.length > MAX_SYSTEM_METRIC_POINTS) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+            chart.update('none'); // 'none' for no animation, smoother updates
+        }
+    },
+    updateTrafficAnalysis: function(scanHistory) {
+        const chart = this.charts.trafficAnalysis;
+        if (chart && document.getElementById('trafficAnalysisChart')) {
+            if (!scanHistory || scanHistory.length === 0) {
+                chart.data.labels = [];
+                chart.data.datasets[0].data = [];
+                chart.data.datasets[1].data = [];
+                chart.data.datasets[2].data = [];
+            } else {
+                chart.data.labels = scanHistory.map((scan) => {
+                    const date = new Date(scan.timestamp);
+                    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}`;
+                });
+                chart.data.datasets[0].data = scanHistory.map(scan => scan.normal);
+                chart.data.datasets[1].data = scanHistory.map(scan => scan.suspicious);
+                chart.data.datasets[2].data = scanHistory.map(scan => scan.malicious);
+            }
+            chart.update();
+            console.log("Traffic Analysis Chart (by Scan) updated.");
+        }
+    },
+    updateAptTypeDistribution: function(counts) {
+        const chart = this.charts.aptTypeDistribution;
+        if (chart && document.getElementById('aptTypeDistributionChart')) {
+            chart.data.labels = Object.keys(counts || {});
+            chart.data.datasets[0].data = Object.values(counts || {});
+            chart.update();
+        }
+    },
+    updateTopIpChart: function(chartInstanceKey, ipCounts) {
+        const chart = this.charts[chartInstanceKey];
+        const canvasId = chartInstanceKey === 'topAptSourceIp' ? 'topAptSourceIpChart' : 'topAptDestIpChart';
+        if (chart && document.getElementById(canvasId)) {
+            chart.data.labels = Object.keys(ipCounts || {});
+            chart.data.datasets[0].data = Object.values(ipCounts || {});
+            chart.update();
+        }
+    },
+    updateAptProtocol: function(counts) {
+        const chart = this.charts.aptProtocol;
+        if (chart && document.getElementById('aptProtocolChart')) {
+            chart.data.labels = Object.keys(counts || {});
+            chart.data.datasets[0].data = Object.values(counts || {});
+            chart.update();
+        }
+    },
+    clearAllChartData: function() {
+        this.updateThreatTrends({ labels: [], critical: [], high: [], medium: [], low: [] });
+        if (this.charts.systemMetrics) {
+            this.charts.systemMetrics.data.labels = [];
+            this.charts.systemMetrics.data.datasets.forEach(dataset => dataset.data = []);
+            this.charts.systemMetrics.update();
+        }
+        // Don't clear scanHistory (trafficAnalysis) by default on 'clear-results',
+        // it's persistent historical data. It will update with new scan data.
+        this.updateAptTypeDistribution({});
+        this.updateTopIpChart('topAptSourceIp', {});
+        this.updateTopIpChart('topAptDestIp', {});
+        this.updateAptProtocol({});
+        console.log("Cleared data for relevant charts (excluding scan history).");
+    }
+};
+
+// --- PAGE SPECIFIC INITIALIZERS & EVENT LISTENERS ---
+const PageInitializers = {
+    _getClonedButton: function(buttonId) {
+        const originalButton = document.getElementById(buttonId);
+        if (!originalButton) {
+            console.warn(`Button with id '${buttonId}' not found.`);
+            return null;
+        }
+        // Clone and replace to remove old event listeners effectively
+        const clonedButton = originalButton.cloneNode(true);
+        originalButton.parentNode.replaceChild(clonedButton, originalButton);
+        return clonedButton;
+    },
+
+    dashboard: function() {
+        console.log("Initializing dashboard elements and listeners...");
+        detectionStatusElement = document.getElementById('detectionStatus');
+        if (detectionStatusElement) detectionStatusText = detectionStatusElement.querySelector('.status-text');
+        startAnalysisButton = this._getClonedButton('startAnalysisButton');
+        stopAnalysisButton = this._getClonedButton('stopAnalysisButton');
+        totalThreatsElement = document.getElementById('totalThreats');
+        unresolvedThreatsElement = document.getElementById('unresolvedThreats');
+        criticalAlertsElement = document.getElementById('criticalAlerts');
+        systemStatusTextElement = document.getElementById('systemStatus');
+        cpuUsageElement = document.getElementById('cpuUsage');
+        memoryUsageElement = document.getElementById('memoryUsage');
+        networkUsageElement = document.getElementById('networkUsage');
+        const recentAlertsTable = document.getElementById('recentAlertsTable');
+        if (recentAlertsTable) recentAlertsTableBody = recentAlertsTable.getElementsByTagName('tbody')[0];
+        statusArea = document.getElementById('statusArea');
+
+        ChartManager.initializeAllCharts();
+
+        if (startAnalysisButton) {
+            startAnalysisButton.addEventListener('click', () => {
+                UIUpdater.updateDetectionStatus(null, 'Starting...');
+                if (recentAlertsTableBody) UIUpdater.clearTable(recentAlertsTableBody);
+                ChartManager.clearAllChartData(); // Clear previous non-historical results visuals
+
+                if (window.electronAPI) window.electronAPI.startAnalysis();
+                startAnalysisButton.disabled = true;
+                startAnalysisButton.textContent = "Analysis Running...";
+                if (stopAnalysisButton) stopAnalysisButton.disabled = false;
+            });
+        }
+        if (stopAnalysisButton) {
+            stopAnalysisButton.disabled = true;
+            stopAnalysisButton.addEventListener('click', () => {
+                if (window.electronAPI) {
+                    window.electronAPI.stopAnalysis();
+                    UIUpdater.updateDetectionStatus(false, 'Stopping...');
+                    stopAnalysisButton.disabled = true;
+                }
+            });
+        }
+        // Load initial scan history
+        if (IPCManager.initialSettingsData && IPCManager.initialSettingsData.scanHistory) {
+            ChartManager.updateTrafficAnalysis(IPCManager.initialSettingsData.scanHistory);
+        }
+    },
+
+    setting: function() {
+        console.log("Initializing setting page elements and listeners...");
+        ThemeManager.updateThemeSelectElement(); // Set theme dropdown
+
+        const saveSettingsButton = this._getClonedButton('saveSettingsButton');
+        const themeSelectElement = document.getElementById('theme-select');
+        // Email settings fields
+        const enableEmailNotif = document.getElementById('enable-email-notifications');
+        const emailSenderAddr = document.getElementById('email-sender-address');
+        const emailSenderPass = document.getElementById('email-sender-password');
+        const emailReceiverAddr = document.getElementById('email-receiver-address');
+        const emailSmtpServer = document.getElementById('email-smtp-server');
+        const emailSmtpPort = document.getElementById('email-smtp-port');
+        // Telegram settings fields
+        const enableTelegramNotif = document.getElementById('enable-telegram-notifications');
+        const telegramBotToken = document.getElementById('telegram-bot-token');
+        const telegramChatId = document.getElementById('telegram-chat-id');
+
+        // Load existing settings into fields
+        if (window.electronAPI && typeof window.electronAPI.loadSettings === 'function') {
+            window.electronAPI.loadSettings().then(settings => {
+                if (settings) {
+                    if (themeSelectElement) themeSelectElement.value = settings.theme || 'dark';
+                    if (enableEmailNotif) enableEmailNotif.checked = !!settings.enableEmailNotifications;
+                    if (emailSenderAddr) emailSenderAddr.value = settings.emailSenderAddress || '';
+                    // We generally don't pre-fill password fields for security.
+                    // if (emailSenderPass) emailSenderPass.value = settings.emailSenderPassword || '';
+                    if (emailReceiverAddr) emailReceiverAddr.value = settings.emailReceiverAddress || '';
+                    if (emailSmtpServer) emailSmtpServer.value = settings.emailSmtpServer || '';
+                    if (emailSmtpPort) emailSmtpPort.value = settings.emailSmtpPort || '';
+
+                    if (enableTelegramNotif) enableTelegramNotif.checked = !!settings.enableTelegramNotifications;
+                    if (telegramBotToken) telegramBotToken.value = settings.telegramBotToken || '';
+                    if (telegramChatId) telegramChatId.value = settings.telegramChatId || '';
+                }
+            }).catch(err => console.error("Error loading settings for page:", err));
+        }
+
+
+        if (saveSettingsButton) {
+            saveSettingsButton.addEventListener('click', () => {
+                const settingsToSave = {
+                    theme: themeSelectElement ? themeSelectElement.value : 'dark',
+                    enableEmailNotifications: enableEmailNotif ? enableEmailNotif.checked : false,
+                    emailSenderAddress: emailSenderAddr ? emailSenderAddr.value : '',
+                    emailSenderPassword: emailSenderPass ? emailSenderPass.value : '', // Store if provided
+                    emailReceiverAddress: emailReceiverAddr ? emailReceiverAddr.value : '',
+                    emailSmtpServer: emailSmtpServer ? emailSmtpServer.value : '',
+                    emailSmtpPort: emailSmtpPort ? emailSmtpPort.value : '',
+                    enableTelegramNotifications: enableTelegramNotif ? enableTelegramNotif.checked : false,
+                    telegramBotToken: telegramBotToken ? telegramBotToken.value : '',
+                    telegramChatId: telegramChatId ? telegramChatId.value : ''
+                };
+
+                console.log("Saving settings:", settingsToSave);
+                // Clear password field after attempting to save for some basic security
+                if(emailSenderPass) emailSenderPass.value = '';
+
+                if (window.electronAPI) {
+                    window.electronAPI.saveSettings(settingsToSave);
+                    ThemeManager.applyTheme(settingsToSave.theme);
+                    alert('Cài đặt đã được lưu! Mật khẩu Email (nếu được cung cấp) sẽ được sử dụng bởi hệ thống nhưng không được hiển thị lại tại đây.');
+                } else {
+                    alert('Lỗi: Không thể lưu cài đặt.');
+                }
+            });
+        }
+    }
+};
+
+// --- UI UPDATE UTILITIES ---
+const UIUpdater = {
+    updateDetectionStatus: function(isActive, text) {
+        if (!detectionStatusElement || !detectionStatusText) { return; }
+        detectionStatusText.textContent = text;
+        const classes = detectionStatusElement.classList;
+        classes.remove('active', 'inactive', 'analyzing');
+        if (isActive === null) { classes.add('analyzing'); }
+        else if (isActive) { classes.add('active'); }
+        else { classes.add('inactive'); }
+    },
+
+    clearTable: function(tbody) { if (tbody) tbody.innerHTML = ''; },
+
+    updateRecentAlertsTable: function(alerts) {
+        if (!recentAlertsTableBody) return;
+        this.clearTable(recentAlertsTableBody);
+        if (!alerts || alerts.length === 0) {
+            const row = recentAlertsTableBody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 6;
+            cell.textContent = 'No suspicious activities detected.';
+            cell.style.textAlign = 'center'; cell.style.color = 'var(--text-muted)';
+            return;
+        }
+        const alertsToShow = alerts.slice(0, 10); // Show max 10
+        alertsToShow.forEach(alert => {
+            const row = recentAlertsTableBody.insertRow();
+            const severity = this.getSeverityDetailsFromAlert(alert);
+            row.insertCell().innerHTML = `<span class="severity-badge ${severity.class}">${severity.text}</span>`;
+            row.insertCell().textContent = alert.Prediction || 'N/A';
+            row.insertCell().textContent = alert['Src IP'] || alert['Source IP'] || 'N/A';
+            row.insertCell().textContent = alert['Dst IP'] || alert['Destination IP'] || 'N/A';
+            row.insertCell().textContent = alert.Timestamp ? new Date(alert.Timestamp).toLocaleString() : 'N/A';
+            row.insertCell().innerHTML = `<a href="#" class="details-link" data-flowid="${alert['Flow ID'] || ''}">Details</a>`;
+        });
+    },
+
+    getSeverityDetailsFromAlert: function(alert) {
+        let severityText = 'Low', severityClass = 'severity-low';
+        const prediction = alert.Prediction ? String(alert.Prediction).toLowerCase() : '';
+        const probability = typeof alert.Prediction_Probability === 'number' ? alert.Prediction_Probability : 0;
+
+        if (prediction.includes('critical') || (prediction !== 'benign' && probability > 0.9)) {
+            severityText = 'Critical'; severityClass = 'severity-critical';
+        } else if (prediction.includes('high') || (prediction !== 'benign' && probability > 0.75)) { // Adjusted threshold
+            severityText = 'High'; severityClass = 'severity-high';
+        } else if (prediction.includes('medium') || (prediction !== 'benign' && probability > 0.5)) {
+            severityText = 'Medium'; severityClass = 'severity-medium';
+        } else if (prediction === 'benign' || prediction === '') {
+            severityText = 'Info'; severityClass = 'severity-info'; // Should be a specific class if you want color
+        }
+        return { text: severityText, class: severityClass, level: severityText };
+    },
+
+    updateDashboardSummary: function(data) {
+        if (totalThreatsElement) totalThreatsElement.textContent = data.totalThreats ?? 'N/A';
+        if (criticalAlertsElement) criticalAlertsElement.textContent = data.criticalAlerts ?? 'N/A';
+        if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = `${data.unresolvedThreats || data.totalThreats || 0} total threats detected`;
+
+        const normalTrafficEl = document.getElementById('normalTraffic');
+        const suspiciousTrafficEl = document.getElementById('suspiciousTraffic');
+        const maliciousTrafficEl = document.getElementById('maliciousTraffic');
+        if (data.trafficAnalysisDataForCurrentScan) {
+            if (normalTrafficEl) normalTrafficEl.textContent = `${(data.trafficAnalysisDataForCurrentScan.normal || 0).toFixed(2)} MB`;
+            if (suspiciousTrafficEl) suspiciousTrafficEl.textContent = `${(data.trafficAnalysisDataForCurrentScan.suspicious || 0).toFixed(2)} MB`;
+            if (maliciousTrafficEl) maliciousTrafficEl.textContent = `${(data.trafficAnalysisDataForCurrentScan.malicious || 0).toFixed(2)} MB`;
+        }
+        const activeAttacksEl = document.getElementById('activeAttacks');
+        const countriesEl = document.getElementById('countries');
+        const totalTodayEl = document.getElementById('totalToday');
+        if (data.globalThreatMap) {
+            if (activeAttacksEl) activeAttacksEl.textContent = data.globalThreatMap.activeAttacks || 0;
+            if (countriesEl) countriesEl.textContent = data.globalThreatMap.countries || 0;
+            if (totalTodayEl) totalTodayEl.textContent = data.globalThreatMap.totalToday || 0;
+        }
+    },
+    processCsvDataForThreatTrendsChart: function(csvRows) {
+        if (!csvRows || csvRows.length === 0) return { labels: [], critical: [], high: [], medium: [], low: [] };
+        const aggregatedData = {};
+        csvRows.forEach(row => {
+            if (!row.Timestamp) return;
+            const severityDetails = this.getSeverityDetailsFromAlert(row);
+            if (severityDetails.level === 'Info' || !severityDetails.level) return; // Skip Info level for trends
+            let dateKey;
+            try {
+                const timestamp = new Date(row.Timestamp);
+                if (isNaN(timestamp.getTime())) return;
+                dateKey = timestamp.toISOString().split('T')[0]; // Group by day
+            } catch (e) { return; }
+            if (!aggregatedData[dateKey]) aggregatedData[dateKey] = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+            if (aggregatedData[dateKey][severityDetails.level] !== undefined) aggregatedData[dateKey][severityDetails.level]++;
+        });
+        const sortedDates = Object.keys(aggregatedData).sort((a, b) => new Date(a) - new Date(b));
+        const result = { labels: [], critical: [], high: [], medium: [], low: [] };
+        sortedDates.forEach(date => {
+            result.labels.push(new Date(date).toLocaleDateString([], {month:'short', day:'numeric'})); // Format date
+            result.critical.push(aggregatedData[date].Critical);
+            result.high.push(aggregatedData[date].High);
+            result.medium.push(aggregatedData[date].Medium);
+            result.low.push(aggregatedData[date].Low);
+        });
+        return result;
+    }
+};
+
+// --- IPC EVENT HANDLERS ---
+const IPCManager = {
+    initialSettingsData: null,
+
+    setupListeners: function() {
+        if (!window.electronAPI) {
+            console.error("window.electronAPI is not defined.");
             return;
         }
 
+        window.electronAPI.onStatusUpdate((message) => {
+            console.log("Status:", message.trim());
+            if (statusArea) { statusArea.textContent += message + '\n'; statusArea.scrollTop = statusArea.scrollHeight; }
 
-        if (!aggregatedData[dateKey]) {
-            aggregatedData[dateKey] = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-        }
-        if (aggregatedData[dateKey][severityDetails.level] !== undefined) {
-            aggregatedData[dateKey][severityDetails.level]++;
-        }
-    });
+            if (message.includes("Starting Network Analysis Pipeline")) {
+                UIUpdater.updateDetectionStatus(null, 'Detection Starting...');
+                if (startAnalysisButton) startAnalysisButton.disabled = true;
+                if (stopAnalysisButton) stopAnalysisButton.disabled = false;
+            } else if (message.includes("Prediction Module Finished Successfully") || message.includes("Pipeline Completed Successfully")) {
+                UIUpdater.updateDetectionStatus(false, 'Analysis Complete');
+                // Button state managed by onResultsData or onAnalysisProcessTerminated
+            } else if (message.toLowerCase().includes("error") || message.toLowerCase().includes("failed") || message.includes("LỖI")) {
+                // Don't prematurely set to Inactive here, wait for full termination or successful result processing.
+                // Python process might log an error but still complete or main.js handles the failure state.
+                console.error("Error message received:", message.trim());
+            } else if (message.includes("Starting Prediction Module")) {
+                 UIUpdater.updateDetectionStatus(null, 'Analyzing...');
+            }
+        });
 
-    const sortedDates = Object.keys(aggregatedData).sort((a, b) => new Date(a) - new Date(b));
+        window.electronAPI.onClearResults(() => {
+            if (recentAlertsTableBody) UIUpdater.clearTable(recentAlertsTableBody);
+            if (totalThreatsElement) totalThreatsElement.textContent = '0';
+            if (criticalAlertsElement) criticalAlertsElement.textContent = '0';
+            if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = '0 total threats detected';
+            ChartManager.clearAllChartData();
+        });
 
-    const labels = [];
-    const criticalData = [];
-    const highData = [];
-    const mediumData = [];
-    const lowData = [];
+        window.electronAPI.onResultsData((data) => {
+            console.log("Results Data Received (partial):", { keys: Object.keys(data) });
+            UIUpdater.updateDashboardSummary(data);
+            if (data.suspicious) UIUpdater.updateRecentAlertsTable(data.suspicious);
 
-    // To ensure a continuous range (e.g., last 30 days), you might want to generate all labels in that range
-    // and then fill in data. For now, just using dates present in the data.
-    // Example: Get range from first to last detected date, or a fixed window like last 7 days.
-    // For simplicity, this version uses only dates with data.
+            if (data.suspicious && Array.isArray(data.suspicious)) {
+                const trendData = UIUpdater.processCsvDataForThreatTrendsChart(data.suspicious);
+                ChartManager.updateThreatTrends(trendData);
+            }
+            if (data.scanHistory) ChartManager.updateTrafficAnalysis(data.scanHistory);
+            if (data.aptTypeCounts) ChartManager.updateAptTypeDistribution(data.aptTypeCounts);
+            if (data.topSourceAPTIPs) ChartManager.updateTopIpChart('topAptSourceIp', data.topSourceAPTIPs);
+            if (data.topDestAPTIPs) ChartManager.updateTopIpChart('topAptDestIp', data.topDestAPTIPs);
+            if (data.aptProtocolCounts) ChartManager.updateAptProtocol(data.aptProtocolCounts);
 
-    sortedDates.forEach(date => {
-        labels.push(date);
-        criticalData.push(aggregatedData[date].Critical);
-        highData.push(aggregatedData[date].High);
-        mediumData.push(aggregatedData[date].Medium);
-        lowData.push(aggregatedData[date].Low);
-    });
+            if (startAnalysisButton) { startAnalysisButton.disabled = false; startAnalysisButton.textContent = "Start Analysis"; }
+            if (stopAnalysisButton) stopAnalysisButton.disabled = true;
+            UIUpdater.updateDetectionStatus(false, 'Results Loaded'); // More accurate status
+        });
 
-    return {
-        labels: labels,
-        critical: criticalData,
-        high: highData,
-        medium: mediumData,
-        low: lowData
-    };
-}
+        window.electronAPI.onSystemMetrics((metrics) => {
+            if (systemStatusTextElement) systemStatusTextElement.textContent = "Active";
+            if (cpuUsageElement) cpuUsageElement.textContent = metrics.cpu?.toFixed(1) + '%' || '--%';
+            if (memoryUsageElement) memoryUsageElement.textContent = metrics.mem?.toFixed(1) + '%' || '--%';
+            if (networkUsageElement) networkUsageElement.textContent = (metrics.net / 1024)?.toFixed(1) + ' KB/s' || '-- KB/s';
+            ChartManager.updateSystemMetrics(metrics.timestamp, metrics.cpu, metrics.mem, (metrics.net / 1024));
+        });
 
+        window.electronAPI.onSettingsUpdated((settings) => {
+            console.log("Settings updated from main:", settings);
+            this.initialSettingsData = {...this.initialSettingsData, ...settings}; // Merge updates
+            if (settings?.theme) {
+                ThemeManager.applyTheme(settings.theme);
+                if (Navigation.activePage === 'setting') ThemeManager.updateThemeSelectElement();
+            }
+            if (settings?.scanHistory && Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()){
+                 ChartManager.updateTrafficAnalysis(settings.scanHistory);
+            }
+            // Repopulate settings page if it's active and other settings changed
+            if (Navigation.activePage === 'setting') PageInitializers.setting();
+        });
 
-function updateThreatTrendsChart(processedTrendData) {
-    if (!threatTrendsChart || !document.getElementById('threatTrendsChart')) {
-        // console.warn("Threat trends chart not initialized or canvas not found. Cannot update.");
-        return;
+        window.electronAPI.onInitialSettings((settings) => {
+            console.log("Initial settings from main:", settings);
+            this.initialSettingsData = settings;
+            if (settings) {
+                ThemeManager.applyTheme(settings.theme || 'dark');
+                if (settings.scanHistory && Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()) {
+                     ChartManager.updateTrafficAnalysis(settings.scanHistory);
+                }
+            }
+        });
+
+        window.electronAPI.onAnalysisProcessTerminated(() => {
+            console.log("Analysis terminated by main process.");
+            UIUpdater.updateDetectionStatus(false, 'Analysis Stopped');
+            if (startAnalysisButton) { startAnalysisButton.disabled = false; startAnalysisButton.textContent = "Start Analysis"; }
+            if (stopAnalysisButton) stopAnalysisButton.disabled = true;
+            if (statusArea) statusArea.textContent += 'Analysis stopped by user or due to an error.\n';
+        });
     }
-    if (!processedTrendData) {
-        console.warn("No processed trend data to update chart.");
-        return;
-    }
-    threatTrendsChart.data.labels = processedTrendData.labels;
-    threatTrendsChart.data.datasets[0].data = processedTrendData.critical;
-    threatTrendsChart.data.datasets[1].data = processedTrendData.high;
-    threatTrendsChart.data.datasets[2].data = processedTrendData.medium;
-    threatTrendsChart.data.datasets[3].data = processedTrendData.low;
-    threatTrendsChart.update();
-    console.log("Threat Trends Chart updated.");
-}
+};
 
+// --- MAIN INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+    Navigation.init();
+    IPCManager.setupListeners();
 
-function updateSystemMetricsChartWithAllMetrics(timestamp, cpu, mem, net) {
-    if (!systemMetricsChart || !document.getElementById('systemMetricsChart')) {
-        // console.warn("System metrics chart not initialized or canvas not found. Cannot update.");
-        return;
-    }
-
-    const label = new Date(timestamp || Date.now()).toLocaleTimeString();
-
-    systemMetricsChart.data.labels.push(label);
-    systemMetricsChart.data.datasets[0].data.push(cpu !== undefined && cpu !== null ? cpu : 0);
-    systemMetricsChart.data.datasets[1].data.push(mem !== undefined && mem !== null ? mem : 0);
-    systemMetricsChart.data.datasets[2].data.push(net !== undefined && net !== null ? net : 0);
-
-
-    if (systemMetricsChart.data.labels.length > MAX_METRIC_POINTS) {
-        systemMetricsChart.data.labels.shift();
-        systemMetricsChart.data.datasets.forEach(dataset => dataset.data.shift());
-    }
-    systemMetricsChart.update('none'); // 'none' for no animation, good for real-time updates
-    // console.log("System Metrics Chart updated.");
-}
-
-
-// --- Window Control Event Listeners (assuming these are in your main HTML file or loaded with dashboard) ---
-// It's generally better to add these listeners once the main shell of the app is loaded,
-// rather than re-adding them every time 'dashboard' is loaded.
-// If they are part of the persistent UI (e.g. a top bar):
-document.addEventListener('DOMContentLoaded', () => { // Or ensure these are only run once
     const minimizeBtn = document.getElementById('minimize-btn');
     const maximizeRestoreBtn = document.getElementById('maximize-restore-btn');
     const closeBtn = document.getElementById('close-btn');
     const maximizeIcon = document.getElementById('maximize-icon');
     const restoreIcon = document.getElementById('restore-icon');
 
-    if (minimizeBtn && window.electronAPI) {
-        minimizeBtn.addEventListener('click', () => window.electronAPI.minimizeApp());
-    }
-    if (maximizeRestoreBtn && window.electronAPI) {
-        maximizeRestoreBtn.addEventListener('click', () => window.electronAPI.maximizeRestoreApp());
-    }
-    if (closeBtn && window.electronAPI) {
-        closeBtn.addEventListener('click', () => window.electronAPI.closeApp());
-    }
+    if (window.electronAPI) {
+        if (minimizeBtn) minimizeBtn.addEventListener('click', () => window.electronAPI.minimizeApp());
+        if (maximizeRestoreBtn) maximizeRestoreBtn.addEventListener('click', () => window.electronAPI.maximizeRestoreApp());
+        if (closeBtn) closeBtn.addEventListener('click', () => window.electronAPI.closeApp());
 
-    if (window.electronAPI && typeof window.electronAPI.onWindowMaximized === 'function') {
         window.electronAPI.onWindowMaximized(() => {
             if (maximizeIcon) maximizeIcon.style.display = 'none';
             if (restoreIcon) restoreIcon.style.display = 'block';
             if (maximizeRestoreBtn) maximizeRestoreBtn.title = 'Restore';
         });
-    }
-    if (window.electronAPI && typeof window.electronAPI.onWindowUnmaximized === 'function') {
         window.electronAPI.onWindowUnmaximized(() => {
             if (maximizeIcon) maximizeIcon.style.display = 'block';
             if (restoreIcon) restoreIcon.style.display = 'none';
             if (maximizeRestoreBtn) maximizeRestoreBtn.title = 'Maximize';
         });
     }
+    Navigation.loadPage('dashboard'); // Load initial page
 });

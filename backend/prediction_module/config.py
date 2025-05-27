@@ -19,7 +19,6 @@ _input_filename = os.path.basename(NETWORK_FLOWS_CSV_PATH)
 # Lưu file output vào thư mục RESULTS_DIR đã định nghĩa
 PREDICTIONS_OUTPUT_CSV_PATH = os.path.join(RESULTS_DIR, _input_filename.replace('.csv', '_Predictions.csv'))
 SUSPICIOUS_OUTPUT_CSV_PATH = os.path.join(RESULTS_DIR, 'Suspicious_' + _input_filename.replace('.csv', '_Predictions.csv'))
-# ----- KẾT THÚC SỬA -----
 
 # --- Feature Engineering Settings (Optional) ---
 # Enable/disable dynamic feature calculation if your model needs them
@@ -27,7 +26,6 @@ CALCULATE_DYNAMIC_FEATURES = False # Set to True if model uses time_since_last o
 ROLLING_WINDOW_MINUTES = 2 # Used only if CALCULATE_DYNAMIC_FEATURES is True and model needs rolling features
 
 # --- Prediction Settings ---
-# Labels considered as 'normal' traffic
 BENIGN_LABELS = ['Benign', 0, 'BENIGN'] # Case-insensitive check might be better later
 
 # --- Logging Configuration ---

@@ -16,7 +16,6 @@ def initialize_flow_state():
         'psh_flag_count': 0, 'ack_flag_count': 0, 'urg_flag_count': 0,
         'cwe_flag_count': 0, 'ece_flag_count': 0,
         'all_timestamps_ordered': [],
-        # 'active_periods': [], 'idle_periods': [], 'last_active_transition': current_time, # Simplified for now
         'flow_id': None, 'src_init_win_bytes': -1, 'dst_init_win_bytes': -1,
         'fwd_data_pkt_count': 0, 'fwd_min_seg_size': float('inf'),
     }

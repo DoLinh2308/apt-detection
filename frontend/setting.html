@@ -1,0 +1,179 @@
+<div class="page-container">
+    <h2 class="page-title">Cài đặt</h2>
+    <div class="settings-content">
+        <p>Đây là trang cài đặt. Bạn có thể thêm các tùy chọn cấu hình cho ứng dụng tại đây.</p>
+
+        <div class="setting-section">
+            <h4>Cài đặt chung</h4>
+            <div class="setting-item">
+                <label for="theme-select">Giao diện (Theme):</label>
+                <select id="theme-select" name="theme">
+                    <option value="light">Sáng (Light)</option>
+                    <option value="dark">Tối (Dark)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="language-select">Ngôn ngữ:</label>
+                <select id="language-select" name="language" disabled>
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English</option>
+                </select>
+                 <small style="margin-left: 10px;">(Thay đổi ngôn ngữ sẽ có hiệu lực sau khi khởi động lại - tính năng đang phát triển)</small>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h4>Cài đặt thông báo Email</h4>
+            <div class="setting-item">
+                <input type="checkbox" id="enable-email-notifications" name="enable-email-notifications">
+                <label for="enable-email-notifications">Bật thông báo qua Email</label>
+            </div>
+            <div class="setting-item">
+                <label for="email-sender-address">Địa chỉ Email người gửi:</label>
+                <input type="email" id="email-sender-address" name="email-sender-address" placeholder="your_sender_email@example.com">
+            </div>
+            <div class="setting-item">
+                <label for="email-sender-password">Mật khẩu Email người gửi:</label>
+                <input type="password" id="email-sender-password" name="email-sender-password" placeholder="App Password nếu dùng Gmail 2FA">
+            </div>
+            <div class="setting-item">
+                <label for="email-receiver-address">Địa chỉ Email người nhận:</label>
+                <input type="email" id="email-receiver-address" name="email-receiver-address" placeholder="your_receiver_email@example.com">
+            </div>
+            <div class="setting-item">
+                <label for="email-smtp-server">Máy chủ SMTP:</label>
+                <input type="text" id="email-smtp-server" name="email-smtp-server" placeholder="smtp.gmail.com">
+            </div>
+            <div class="setting-item">
+                <label for="email-smtp-port">Cổng SMTP:</label>
+                <input type="number" id="email-smtp-port" name="email-smtp-port" placeholder="587">
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h4>Cài đặt thông báo Telegram</h4>
+             <div class="setting-item">
+                <input type="checkbox" id="enable-telegram-notifications" name="enable-telegram-notifications">
+                <label for="enable-telegram-notifications">Bật thông báo qua Telegram</label>
+            </div>
+            <div class="setting-item">
+                <label for="telegram-bot-token">Telegram Bot Token:</label>
+                <input type="text" id="telegram-bot-token" name="telegram-bot-token" placeholder="Telegram Bot Token">
+            </div>
+            <div class="setting-item">
+                <label for="telegram-chat-id">Telegram Chat ID:</label>
+                <input type="text" id="telegram-chat-id" name="telegram-chat-id" placeholder="Telegram Chat ID">
+            </div>
+        </div>
+
+
+        <div class="setting-section">
+            <h4>Thông tin phiên bản</h4>
+            <p>Phiên bản phần mềm: 1.0.1</p>
+            <p>© 2024 APT Shield Team</p>
+        </div>
+
+        <button id="saveSettingsButton" class="btn btn-primary" style="margin-top: 20px;">Lưu Cài Đặt</button>
+    </div>
+</div>
+
+<style>
+    .page-container {
+        padding: 20px;
+        max-width: 900px; /* Giới hạn chiều rộng tối đa của container */
+        margin: 0 auto;   /* Căn giữa container */
+    }
+    .page-title {
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        text-align: center;
+    }
+    .settings-content {
+        background-color: var(--background-content);
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .setting-section {
+        margin-bottom: 35px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .setting-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    .setting-section h4 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: var(--text-accent); /* Màu nhấn cho tiêu đề section */
+        font-size: 1.1em;
+        border-bottom: 1px solid var(--border-accent);
+        padding-bottom: 8px;
+    }
+    .setting-item {
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap; /* Cho phép wrap nếu không đủ chỗ */
+    }
+    .setting-item label:first-child, /* Label chính */
+    .setting-item label[for^="enable-"] { /* Label của checkbox */
+        min-width: 220px;
+        margin-right: 15px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        flex-shrink: 0; /* Ngăn label co lại */
+    }
+    /* Riêng cho label của checkbox, đặt sau checkbox */
+    .setting-item input[type="checkbox"] + label {
+        min-width: auto; /* Reset min-width */
+        font-weight: normal;
+        margin-left: 8px; /* Khoảng cách sau checkbox */
+    }
+
+    .setting-item select,
+    .setting-item input[type="text"],
+    .setting-item input[type="email"],
+    .setting-item input[type="password"],
+    .setting-item input[type="number"] {
+        padding: 10px 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        background-color: var(--background-input);
+        color: var(--text-input);
+        flex-grow: 1; /* Cho input chiếm không gian còn lại */
+        min-width: 200px; /* Chiều rộng tối thiểu, tránh quá hẹp */
+        box-sizing: border-box; /* Đảm bảo padding không làm tăng kích thước */
+    }
+    .setting-item input[type="checkbox"] {
+        /* Giữ kích thước checkbox chuẩn, không cần style nhiều */
+         accent-color: var(--text-accent); /* Màu cho checkbox khi checked */
+         width: 18px;
+         height: 18px;
+    }
+     .setting-item small {
+        width: 100%;
+        margin-left: 235px; /* Căn lề với input */
+        font-size: 0.85em;
+        color: var(--text-muted);
+    }
+    .btn.btn-primary {
+        background-color: var(--button-primary-bg);
+        color: var(--button-primary-text);
+        border: none;
+        padding: 12px 25px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        display: block; /* Để dễ căn giữa */
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .btn.btn-primary:hover {
+        filter: brightness(110%);
+    }
+</style>

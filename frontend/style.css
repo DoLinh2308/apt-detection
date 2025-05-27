@@ -416,3 +416,113 @@ tbody tr:hover {
 .card .card-details:hover {
     text-decoration: underline;
 }
+:root {
+    --background-main: #1e1e2f;         /* Nền chính của ứng dụng */
+    --background-sidebar: #27293d;      /* Nền sidebar */
+    --background-content: #2d2d44;      /* Nền khu vực nội dung, card */
+    --background-header: #27293d;       /* Nền header */
+    --background-input: #3a3a56;        /* Nền cho input, select */
+
+    --text-primary: #e0e0e0;            /* Màu chữ chính */
+    --text-secondary: #b0b0c0;          /* Màu chữ phụ, muted */
+    --text-accent: #82aaff;             /* Màu chữ nhấn (ví dụ: link đang active) */
+    --text-input: #e0e0e0;              /* Màu chữ trong input */
+
+    --border-color: #40405f;            /* Màu viền */
+    --border-accent: #82aaff;           /* Màu viền khi focus hoặc active */
+
+    --button-primary-bg: #5a78d1;       /* Nền nút chính */
+    --button-primary-text: #ffffff;
+    --button-danger-bg: #dc3545;
+    --button-danger-text: #ffffff;
+
+    --scrollbar-thumb: #555;
+    --scrollbar-track: var(--background-sidebar);
+
+    /* Màu cho các trạng thái của detection status */
+    --detection-active-bg: rgba(76, 175, 80, 0.2);
+    --detection-active-text: #4CAF50;
+    --detection-active-dot: #4CAF50;
+
+    --detection-inactive-bg: rgba(244, 67, 54, 0.2);
+    --detection-inactive-text: #f44336;
+    --detection-inactive-dot: #f44336;
+
+    --detection-analyzing-bg: rgba(255, 152, 0, 0.2); /* Màu vàng cam */
+    --detection-analyzing-text: #ff9800;
+    --detection-analyzing-dot: #ff9800;
+
+    /* Màu cho chart */
+    --critical-color: #dc3545;
+    --high-color: #fd7e14;
+    --medium-color: #ffc107;
+    --low-color: #17a2b8;
+    --info-color: #0dcaf0; /* Thêm màu cho Info nếu cần */
+
+    --cpu-color: rgba(255, 99, 132, 1);
+    --cpu-bg-color: rgba(255, 99, 132, 0.2);
+    --mem-color: rgba(54, 162, 235, 1);
+    --mem-bg-color: rgba(54, 162, 235, 0.2);
+    --net-color: rgba(75, 192, 192, 1);
+    --net-bg-color: rgba(75, 192, 192, 0.2);
+}
+
+/* Định nghĩa các biến màu cho Light Theme */
+body.light-theme {
+    --background-main: #f4f6f8;          /* Nền chính của ứng dụng */
+    --background-sidebar: #ffffff;       /* Nền sidebar */
+    --background-content: #ffffff;       /* Nền khu vực nội dung, card */
+    --background-header: #e9ecef;        /* Nền header */
+    --background-input: #fdfdfe;         /* Nền cho input, select */
+
+    --text-primary: #212529;             /* Màu chữ chính */
+    --text-secondary: #6c757d;           /* Màu chữ phụ, muted */
+    --text-accent: #007bff;              /* Màu chữ nhấn */
+    --text-input: #495057;               /* Màu chữ trong input */
+
+    --border-color: #dee2e6;             /* Màu viền */
+    --border-accent: #007bff;            /* Màu viền khi focus hoặc active */
+
+    --button-primary-bg: #007bff;
+    --button-primary-text: #ffffff;
+    --button-danger-bg: #dc3545;
+    --button-danger-text: #ffffff;
+
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-track: #e9ecef;
+
+    --detection-active-bg: rgba(40, 167, 69, 0.15);
+    --detection-active-text: #28a745;
+    --detection-active-dot: #28a745;
+
+    --detection-inactive-bg: rgba(220, 53, 69, 0.15);
+    --detection-inactive-text: #dc3545;
+    --detection-inactive-dot: #dc3545;
+
+    --detection-analyzing-bg: rgba(255, 193, 7, 0.2);
+    --detection-analyzing-text: #ffc107;
+    --detection-analyzing-dot: #ffc107;
+
+    /* Màu cho chart (có thể giữ nguyên hoặc điều chỉnh cho phù hợp với nền sáng) */
+    /* Nếu giữ nguyên, đảm bảo text color của chart cũng được cập nhật để dễ đọc */
+    --critical-color: #dc3545;
+    --high-color: #fd7e14;
+    --medium-color: #ffc107;
+    --low-color: #17a2b8;
+    --info-color: #0dcaf0;
+
+    --cpu-color: rgba(255, 99, 132, 1);
+    --cpu-bg-color: rgba(255, 99, 132, 0.2);
+    --mem-color: rgba(54, 162, 235, 1);
+    --mem-bg-color: rgba(54, 162, 235, 0.2);
+    --net-color: rgba(75, 192, 192, 1);
+    --net-bg-color: rgba(75, 192, 192, 0.2);
+}
+
+/* Cập nhật màu chữ cho Chart.js legend và title khi ở light theme */
+body.light-theme .chart-container text, /* Giả sử chart titles/legends là SVG text */
+body.light-theme .chartjs-legend li span,
+body.light-theme .chartjs-title span {
+    fill: var(--text-primary) !important; /* Hoặc màu cụ thể cho chart text trên nền sáng */
+    color: var(--text-primary) !important;
+}

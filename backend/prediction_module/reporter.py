@@ -3,15 +3,16 @@ import pandas as pd
 import numpy as np
 import logging
 import os
-import requests
+# import requests # Not needed here if send_telegram_messege handles it
 from . import config
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Not needed here
 from .send_telegram_messege import process_attack_detection
-# import config
+from .send_email_notification import notify_by_email_on_prediction_completion # <<< MODIFIED IMPORT
+
 def analyze_and_save_results(df_original_with_preds, predictions, probabilities):
     """
     Analyzes prediction results, identifies suspicious flows, prints summaries,
-    and saves results to CSV files.
+    saves results to CSV files, and sends notifications.
 
     Args:
         df_original_with_preds: Original DataFrame with 'Prediction' column added.
@@ -55,25 +56,51 @@ def analyze_and_save_results(df_original_with_preds, predictions, probabilities)
     num_total = len(df_original_with_preds)
     logging.info(f"\nIdentified {num_suspicious} suspicious flows out of {num_total} total flows.")
 
+    # Define display_cols for console/telegram and ensure they exist
+    console_display_cols = ['Timestamp', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Protocol', 'Prediction']
+    if 'Prediction_Probability' in suspicious_flows.columns:
+             console_display_cols.append('Prediction_Probability')
+    
+    # Filter display_cols to only those present in suspicious_flows
+    # These columns will be used for console output and Telegram alerts
+    # The email notification will receive the full suspicious_flows df and decide on columns itself
+    cols_for_console_telegram_alert = [col for col in console_display_cols if col in suspicious_flows.columns]
+    
+    sample_for_console_and_telegram = pd.DataFrame() # Initialize as empty
+
     if num_suspicious > 0:
-        logging.info("Examples of suspicious flows (first 10):")
-        # Select relevant columns for display (use original names if possible, fallback to cleaned)
-        # This requires the renamed_cols_map, which we don't have here.
-        # We'll just display key columns assuming common names exist.
-        display_cols = ['Timestamp', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Protocol', 'Prediction']
-        if 'Prediction_Probability' in suspicious_flows.columns:
-             display_cols.append('Prediction_Probability')
-        # Filter display_cols to only those present in the dataframe
-        display_cols_existing = [col for col in display_cols if col in suspicious_flows.columns]
-        # Print to console
-        print(suspicious_flows[display_cols_existing].head(10).to_string())
-        process_attack_detection(suspicious_flows[display_cols_existing].head(10))
+        logging.info("Examples of suspicious flows (first 10 for console):")
+        
+        if cols_for_console_telegram_alert:
+            # For console, print up to 10
+            print(suspicious_flows[cols_for_console_telegram_alert].head(10).to_string())
+            # For Telegram, use a configured sample size or default
+            telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
+            sample_for_console_and_telegram = suspicious_flows[cols_for_console_telegram_alert].head(telegram_sample_size)
+            if not sample_for_console_and_telegram.empty:
+                 process_attack_detection(sample_for_console_and_telegram)
+        else:
+            # Fallback if desired display columns are not found (less likely)
+            logging.warning("Essential columns for formatted alert display not found. Printing generic suspicious flow data.")
+            print(suspicious_flows.head(10).to_string()) # Print whatever is available
+            # If specific columns are critical for process_attack_detection, it might fail or need adjustment
+            # For now, try sending the head() of the raw suspicious_flows.
+            telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
+            sample_for_console_and_telegram = suspicious_flows.head(telegram_sample_size)
+            if not sample_for_console_and_telegram.empty:
+                 process_attack_detection(sample_for_console_and_telegram)
+    
+    # --- Send Email Notification ---
+    # The email function receives the full original DF with predictions, and the suspicious flows DF.
+    # It will handle formatting and content based on whether suspicious_flows is empty.
+    # The suspicious_flows DataFrame passed here should contain all its original columns,
+    # as the email function might want to select different columns or show all of them in an attachment.
+    notify_by_email_on_prediction_completion(df_original_with_preds, suspicious_flows)
 
 
     # --- Save Results ---
     try:
         logging.info(f"Saving all predictions to: {config.PREDICTIONS_OUTPUT_CSV_PATH}")
-        # Ensure directory exists
         os.makedirs(os.path.dirname(config.PREDICTIONS_OUTPUT_CSV_PATH), exist_ok=True)
         df_original_with_preds.to_csv(config.PREDICTIONS_OUTPUT_CSV_PATH, index=False, encoding='utf-8')
         logging.info("Successfully saved all predictions.")
@@ -83,48 +110,10 @@ def analyze_and_save_results(df_original_with_preds, predictions, probabilities)
     if num_suspicious > 0:
         try:
             logging.info(f"Saving suspicious flows to: {config.SUSPICIOUS_OUTPUT_CSV_PATH}")
-            # Ensure directory exists
             os.makedirs(os.path.dirname(config.SUSPICIOUS_OUTPUT_CSV_PATH), exist_ok=True)
             suspicious_flows.to_csv(config.SUSPICIOUS_OUTPUT_CSV_PATH, index=False, encoding='utf-8')
             logging.info("Successfully saved suspicious flows.")
         except Exception as e:
             logging.error(f"Error saving suspicious flows CSV: {e}", exc_info=True)
     else:
-        logging.info("No suspicious flows to save.")
-        
-
-# def process_attack_detection():
-#     """Xử lý dữ liệu tấn công và gửi thông báo Telegram."""
-#     bot_token = "7645973969:AAFHTo3C-95Ghs5MOQVSGwfEDcTkXn_2iZQ"
-#     user_chat_id = "6647932489"
-
-#     message = f"⚠️ CẢNH BÁO TẤN CÔNG ⚠️\n\n"
-#     message += "\nVui lòng kiểm tra hệ thống ngay lập tức!"
-
-#     send_telegram_message(bot_token, user_chat_id, message)
-# def process_attack_detection(attack_data):
-#     """Xử lý dữ liệu tấn công và gửi thông báo Telegram."""
-#     bot_token = "7645973969:AAFHTo3C-95Ghs5MOQVSGwfEDcTkXn_2iZQ"
-#     user_chat_id = "6647932489"
-
-#     message = f"⚠️ CẢNH BÁO TẤN CÔNG ⚠️\n\n"
-#     message += f"Thời gian: {attack_data['timestamp']}\n"
-#     message += f"Loại tấn công: {attack_data['attack_type']}\n"
-#     message += f"Nguồn: {attack_data.get('source', 'Không xác định')}\n"
-#     message += f"Mức độ: {attack_data['severity']}\n"
-#     message += "\nVui lòng kiểm tra hệ thống ngay lập tức!"
-#     send_telegram_message(bot_token, user_chat_id, message)
-
-# def send_telegram_message(bot_token, chat_id, message):
-#     """Gửi tin nhắn đến người dùng Telegram."""
-#     api_url = f"https://api.telegram.org/bot{'7645973969:AAFHTo3C-95Ghs5MOQVSGwfEDcTkXn_2iZQ'}/sendMessage"
-#     params = {
-#         'chat_id': chat_id,
-#         'text': message
-#     }
-#     try:
-#         response = requests.post(api_url, params=params)
-#         response.raise_for_status()  # Báo lỗi nếu request không thành công
-#         print("Tin nhắn Telegram đã được gửi thành công!")
-#     except requests.exceptions.RequestException as e:
-#         print(f"Lỗi khi gửi tin nhắn Telegram: {e}")
+        logging.info("No suspicious flows to save (related CSV not created or is empty).")

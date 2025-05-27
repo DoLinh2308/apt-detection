@@ -21,16 +21,13 @@ def load_model_scaler():
         scaler = joblib.load(config.SCALER_PATH)
         logging.info(f"Successfully loaded model from: {config.MODEL_PATH}")
         logging.info(f"Successfully loaded scaler from: {config.SCALER_PATH}")
-
-        # Attempt to get feature names from scaler
-        expected_features = config.EXPECTED_FEATURES # Use config override first
-        if expected_features is None: # If not overridden, try getting from scaler
+        expected_features = config.EXPECTED_FEATURES
+        if expected_features is None: 
             if hasattr(scaler, 'feature_names_in_'):
                 expected_features = list(scaler.feature_names_in_)
                 logging.info(f"Derived {len(expected_features)} expected features from scaler.")
             elif hasattr(scaler, 'n_features_in_'):
                  logging.warning(f"Scaler has 'n_features_in_' ({scaler.n_features_in_}) but not 'feature_names_in_'. Cannot derive feature names.")
-                 # Cannot proceed without feature names if not manually defined
                  return None, None, None
             else:
                 logging.error("Scaler object does not have 'feature_names_in_' or 'n_features_in_'. Cannot determine expected features.")
@@ -38,11 +35,9 @@ def load_model_scaler():
                 return None, None, None
         else:
              logging.info(f"Using manually defined EXPECTED_FEATURES list from config ({len(expected_features)} features).")
-
-
         return model, scaler, expected_features
 
-    except FileNotFoundError: # Should be caught by os.path.exists, but good practice
+    except FileNotFoundError: 
         logging.error(f"FileNotFoundError during loading. Check paths: '{config.MODEL_PATH}', '{config.SCALER_PATH}'")
         return None, None, None
     except Exception as e:

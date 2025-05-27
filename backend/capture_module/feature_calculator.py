@@ -29,7 +29,6 @@ def calculate_final_features(flow_state, flow_key_tuple):
     """
     features = {}
     flow_duration_sec = flow_state['last_seen'] - flow_state['start_time']
-    # Avoid division by zero; use a small epsilon if duration is zero
     flow_duration_sec_safe = flow_duration_sec if flow_duration_sec > 0 else 1e-9
 
     # --- Basic Flow Identifiers ---
