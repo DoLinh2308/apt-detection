@@ -145,9 +145,7 @@ const SettingsHandler = {
             scanHistory: store.get('scanHistory', []),
             enableEmailNotifications: store.get('enableEmailNotifications', false),
             emailSenderAddress: store.get('emailSenderAddress', ''),
-            // Do NOT send emailSenderPassword back to renderer for general display
-            // It will be available if Python side needs to read it, but UI shouldn't autofill it.
-            emailSenderPassword: store.get('emailSenderPassword', ''), // internal load for now
+            emailSenderPassword: store.get('emailSenderPassword', ''),
             emailReceiverAddress: store.get('emailReceiverAddress', ''),
             emailSmtpServer: store.get('emailSmtpServer', 'smtp.gmail.com'),
             emailSmtpPort: store.get('emailSmtpPort', 587),
@@ -401,21 +399,48 @@ const AnalysisRunner = {
             if (fs.existsSync(file)) fs.unlinkSync(file);
         });
 
-        // Pass configured settings to Python if needed (currently Python uses .env)
-        // For example: const currentSettings = SettingsHandler.load();
-        // const spawnArgs = [PYTHON_SCRIPT_PATH, '--email-pass', currentSettings.emailSenderPassword];
-        // For simplicity, Python will still use .env files.
-        pythonProcess = spawn(PYTHON_EXECUTABLE, [PYTHON_SCRIPT_PATH], { cwd: BACKEND_DIR });
+        // --- BẮT ĐẦU THAY ĐỔI ĐỂ TRUYỀN CONFIG ---
+        const currentSettings = SettingsHandler.load(); // Lấy tất cả settings
+        const pythonEnv = { ...process.env }; // Sao chép biến môi trường hiện tại
+
+        if (currentSettings.enableEmailNotifications) {
+            console.log("Email notifications enabled by settings. Passing config to Python via ENV.");
+            if (currentSettings.emailSenderAddress) pythonEnv.EMAIL_SENDER_ADDRESS = currentSettings.emailSenderAddress;
+            if (currentSettings.emailSenderPassword) pythonEnv.EMAIL_SENDER_PASSWORD = currentSettings.emailSenderPassword; // QUAN TRỌNG: Mật khẩu được truyền
+            if (currentSettings.emailReceiverAddress) pythonEnv.EMAIL_RECEIVER_ADDRESS = currentSettings.emailReceiverAddress;
+            if (currentSettings.emailSmtpServer) pythonEnv.SMTP_SERVER = currentSettings.emailSmtpServer;
+            if (currentSettings.emailSmtpPort) pythonEnv.SMTP_PORT = String(currentSettings.emailSmtpPort); // Chuyển sang string cho ENV
+        } else {
+            console.log("Email notifications disabled by settings.");
+        }
+
+        if (currentSettings.enableTelegramNotifications) {
+            console.log("Telegram notifications enabled by settings. Passing config to Python via ENV.");
+            if (currentSettings.telegramBotToken) pythonEnv.BOT_TOKEN = currentSettings.telegramBotToken; // QUAN TRỌNG: Token được truyền
+            if (currentSettings.telegramChatId) pythonEnv.CHAT_ID = currentSettings.telegramChatId;
+        } else {
+            console.log("Telegram notifications disabled by settings.");
+        }
+        // --- KẾT THÚC THAY ĐỔI ĐỂ TRUYỀN CONFIG ---
+
+        // Sử dụng pythonEnv khi spawn
+        pythonProcess = spawn(PYTHON_EXECUTABLE, [PYTHON_SCRIPT_PATH], {
+            cwd: BACKEND_DIR,
+            env: pythonEnv // Truyền các biến môi trường đã được tùy chỉnh
+        });
 
         pythonProcess.stdout.on('data', (data) => {
             const message = data.toString();
+            // console.log(`Python stdout: ${message.trim()}`); // Có thể comment bớt nếu quá nhiều log
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', message);
         });
         pythonProcess.stderr.on('data', (data) => {
             const message = data.toString();
+            console.error(`Python stderr: ${message.trim()}`);
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', `PYTHON_ERR: ${message}`);
         });
         pythonProcess.on('close', (code, signal) => {
+            // ... (phần còn lại của listener không đổi) ...
             const wasKilledByUser = analysisManuallyStopped || signal === 'SIGTERM' || signal === 'SIGINT';
             let statusMsg = '', processSuccess = false;
 
@@ -425,13 +450,14 @@ const AnalysisRunner = {
 
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('status-update', statusMsg);
-                if (wasKilledByUser || code !== 0) mainWindow.webContents.send('analysis-process-terminated');
+                if (wasKilledByUser || code !==0 ) mainWindow.webContents.send('analysis-process-terminated');
             }
             ResultsProcessor.processAndSend(processSuccess);
             pythonProcess = null;
             analysisManuallyStopped = false;
         });
         pythonProcess.on('error', (err) => {
+            console.error('Failed to start Python process:', err);
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('status-update', `LỖI KHỞI CHẠY PYTHON: ${err.message}`);
                 mainWindow.webContents.send('analysis-process-terminated');
@@ -465,28 +491,30 @@ app.whenReady().then(async () => {
     AnalysisRunner.setupIPC();
     ipcMain.on('save-settings', (event, settings) => {
         if (!store) {
-             console.error("Attempted to save settings, but store is not initialized.");
-             event.reply('status-update', 'Lỗi nghiêm trọng: Store không khả dụng.'); // Gửi phản hồi nếu cần
-             return;
+            console.error("Attempted to save settings, but store is not initialized.");
+            event.reply('status-update', 'Lỗi nghiêm trọng: Store không khả dụng.'); // Gửi phản hồi nếu cần
+            return;
         }
         SettingsHandler.save(settings);
     });
 
     ipcMain.handle('load-settings', async () => { // Có thể để async nếu có gì đó bất đồng bộ
         if (!store) {
-             console.error("Attempted to load settings, but store is not initialized.");
-             // Trả về cấu trúc mặc định để UI không bị lỗi
-             return {
+            console.error("Attempted to load settings, but store is not initialized.");
+            // Trả về cấu trúc mặc định để UI không bị lỗi
+            return {
                 theme: 'dark', scanHistory: [], enableEmailNotifications: false,
                 emailSenderAddress: '', emailSenderPassword: '', emailReceiverAddress: '',
                 emailSmtpServer: '', emailSmtpPort: '', enableTelegramNotifications: false,
                 telegramBotToken: '', telegramChatId: ''
             };
         }
-        let settings = SettingsHandler.load();
+        let settings = SettingsHandler.load(); // Gọi hàm load nội bộ
+        // Xóa các trường nhạy cảm TRƯỚC KHI trả về cho renderer
         delete settings.emailSenderPassword;
         delete settings.telegramBotToken;
-        return settings;
+        console.log("ipcMain.handle('load-settings') returning (censored):", Object.keys(settings));
+        return settings; // Trả về đối tượng đã được kiểm duyệt
     });
 
     app.on('activate', async () => { // Chuyển thành async

@@ -17,7 +17,7 @@ const Navigation = {
     navLinks: {},
     activePage: null,
 
-    init: function() {
+    init: function () {
         this.contentArea = document.getElementById('main-content');
         this.navLinks = {
             dashboard: document.getElementById('nav-dashboard'),
@@ -37,7 +37,7 @@ const Navigation = {
         }
     },
 
-    loadPage: async function(pageName) {
+    loadPage: async function (pageName) {
         if (!this.contentArea) {
             console.error("Content area not initialized for navigation.");
             return;
@@ -70,7 +70,7 @@ const Navigation = {
         }
     },
 
-    updateActiveLink: function(activePage) {
+    updateActiveLink: function (activePage) {
         for (const id in this.navLinks) {
             if (this.navLinks[id]) {
                 this.navLinks[id].classList.remove('active');
@@ -86,7 +86,7 @@ const Navigation = {
 const ThemeManager = {
     currentTheme: 'dark', // Default theme
 
-    applyTheme: function(themeName) {
+    applyTheme: function (themeName) {
         document.body.classList.remove('light-theme', 'dark-theme');
         if (themeName === 'light') {
             document.body.classList.add('light-theme');
@@ -97,16 +97,16 @@ const ThemeManager = {
         console.log(`Theme applied: ${themeName}`);
 
         if (Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()) {
-             console.log("Reinitializing charts for new theme...");
-             ChartManager.initializeAllCharts();
+            console.log("Reinitializing charts for new theme...");
+            ChartManager.initializeAllCharts();
         }
     },
 
-    applyCurrentTheme: function() {
+    applyCurrentTheme: function () {
         this.applyTheme(this.currentTheme);
     },
 
-    loadAndApplySavedTheme: async function() {
+    loadAndApplySavedTheme: async function () {
         if (window.electronAPI && typeof window.electronAPI.loadSettings === 'function') {
             try {
                 const settings = await window.electronAPI.loadSettings();
@@ -124,7 +124,7 @@ const ThemeManager = {
         }
     },
 
-    updateThemeSelectElement: function() {
+    updateThemeSelectElement: function () {
         const themeSelectElement = document.getElementById('theme-select');
         if (themeSelectElement) {
             themeSelectElement.value = this.currentTheme;
@@ -144,11 +144,11 @@ const ChartManager = {
         aptProtocol: null
     },
 
-    areChartsInitialized: function() {
+    areChartsInitialized: function () {
         return !!document.getElementById('threatTrendsChart'); // Check one prominent chart
     },
 
-    initializeAllCharts: function() {
+    initializeAllCharts: function () {
         console.log("Attempting to initialize all charts...");
         this.destroyAllCharts();
 
@@ -156,12 +156,14 @@ const ChartManager = {
         if (ctxTrends) {
             this.charts.threatTrends = new Chart(ctxTrends, {
                 type: 'bar',
-                data: { labels: [], datasets: [
-                    { label: 'Critical', data: [], backgroundColor: 'var(--critical-color)', stack: 'Severity' },
-                    { label: 'High', data: [], backgroundColor: 'var(--high-color)', stack: 'Severity' },
-                    { label: 'Medium', data: [], backgroundColor: 'var(--medium-color)', stack: 'Severity' },
-                    { label: 'Low', data: [], backgroundColor: 'var(--low-color)', stack: 'Severity' }
-                ]},
+                data: {
+                    labels: [], datasets: [
+                        { label: 'Critical', data: [], backgroundColor: 'var(--critical-color)', stack: 'Severity' },
+                        { label: 'High', data: [], backgroundColor: 'var(--high-color)', stack: 'Severity' },
+                        { label: 'Medium', data: [], backgroundColor: 'var(--medium-color)', stack: 'Severity' },
+                        { label: 'Low', data: [], backgroundColor: 'var(--low-color)', stack: 'Severity' }
+                    ]
+                },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Threat Detections Over Time', color: 'var(--text-primary)' } }, scales: { x: { stacked: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { stacked: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' }, beginAtZero: true } } }
             });
             console.log("Threat Trends Chart initialized.");
@@ -171,11 +173,13 @@ const ChartManager = {
         if (ctxMetrics) {
             this.charts.systemMetrics = new Chart(ctxMetrics, {
                 type: 'line',
-                data: { labels: [], datasets: [
-                    { label: 'CPU Usage (%)', data: [], borderColor: 'var(--cpu-color)', backgroundColor: 'var(--cpu-bg-color)', fill: true, tension: 0.1 },
-                    { label: 'Memory Usage (%)', data: [], borderColor: 'var(--mem-color)', backgroundColor: 'var(--mem-bg-color)', fill: true, tension: 0.1 },
-                    { label: 'Network Usage (KB/s)', data: [], borderColor: 'var(--net-color)', backgroundColor: 'var(--net-bg-color)', fill: true, tension: 0.1 }
-                ]},
+                data: {
+                    labels: [], datasets: [
+                        { label: 'CPU Usage (%)', data: [], borderColor: 'var(--cpu-color)', backgroundColor: 'var(--cpu-bg-color)', fill: true, tension: 0.1 },
+                        { label: 'Memory Usage (%)', data: [], borderColor: 'var(--mem-color)', backgroundColor: 'var(--mem-bg-color)', fill: true, tension: 0.1 },
+                        { label: 'Network Usage (KB/s)', data: [], borderColor: 'var(--net-color)', backgroundColor: 'var(--net-bg-color)', fill: true, tension: 0.1 }
+                    ]
+                },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'System Resource Usage', color: 'var(--text-primary)' } }, scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' }, beginAtZero: true, suggestedMax: 100 } } }
             });
             console.log("System Metrics Chart initialized.");
@@ -185,12 +189,14 @@ const ChartManager = {
         if (ctxTraffic) {
             this.charts.trafficAnalysis = new Chart(ctxTraffic, {
                 type: 'bar',
-                data: { labels: [], datasets: [
-                    { label: 'Lưu lượng Bình thường', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)', stack: 'scanData' },
-                    { label: 'Lưu lượng Nghi ngờ', data: [], backgroundColor: 'rgba(255, 206, 86, 0.7)', stack: 'scanData' },
-                    { label: 'Lưu lượng Độc hại', data: [], backgroundColor: 'rgba(255, 99, 132, 0.7)', stack: 'scanData' }
-                ]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Thống Kê Lưu Lượng Qua Các Lần Quét', color: 'var(--text-primary)' } }, scales: { x: { title: {display: true, text: 'Lần Quét', color: 'var(--text-secondary)'}, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: {title: {display: true, text: 'Dung lượng (Units)', color: 'var(--text-secondary)'},  beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
+                data: {
+                    labels: [], datasets: [
+                        { label: 'Lưu lượng Bình thường', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)', stack: 'scanData' },
+                        { label: 'Lưu lượng Nghi ngờ', data: [], backgroundColor: 'rgba(255, 206, 86, 0.7)', stack: 'scanData' },
+                        { label: 'Lưu lượng Độc hại', data: [], backgroundColor: 'rgba(255, 99, 132, 0.7)', stack: 'scanData' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Thống Kê Lưu Lượng Qua Các Lần Quét', color: 'var(--text-primary)' } }, scales: { x: { title: { display: true, text: 'Lần Quét', color: 'var(--text-secondary)' }, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { title: { display: true, text: 'Dung lượng (Units)', color: 'var(--text-secondary)' }, beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
             });
             console.log("Traffic Analysis Chart (by Scan) initialized.");
         }
@@ -199,7 +205,7 @@ const ChartManager = {
         if (ctxAptType) {
             this.charts.aptTypeDistribution = new Chart(ctxAptType, {
                 type: 'doughnut',
-                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(255, 99, 132, 0.7)','rgba(54, 162, 235, 0.7)','rgba(255, 206, 86, 0.7)','rgba(75, 192, 192, 0.7)','rgba(153, 102, 255, 0.7)','rgba(255, 159, 64, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }]},
+                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Phân bố Loại Tấn Công APT', color: 'var(--text-primary)' } } }
             });
             console.log("APT Type Distribution Chart initialized.");
@@ -209,7 +215,7 @@ const ChartManager = {
         if (ctxTopSrcIp) {
             this.charts.topAptSourceIp = new Chart(ctxTopSrcIp, {
                 type: 'bar',
-                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)' }]},
+                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(75, 192, 192, 0.7)' }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Top IP Nguồn Tấn Công APT', color: 'var(--text-primary)' } }, scales: { x: { beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
             });
             console.log("Top APT Source IP Chart initialized.");
@@ -218,7 +224,7 @@ const ChartManager = {
         if (ctxTopDestIp) {
             this.charts.topAptDestIp = new Chart(ctxTopDestIp, {
                 type: 'bar',
-                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(255, 159, 64, 0.7)' }]},
+                data: { labels: [], datasets: [{ label: 'Số Lần Ghi Nhận', data: [], backgroundColor: 'rgba(255, 159, 64, 0.7)' }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Top IP Đích Bị Tấn Công APT', color: 'var(--text-primary)' } }, scales: { x: { beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } } } }
             });
             console.log("Top APT Destination IP Chart initialized.");
@@ -227,14 +233,14 @@ const ChartManager = {
         if (ctxAptProto) {
             this.charts.aptProtocol = new Chart(ctxAptProto, {
                 type: 'pie',
-                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(153, 102, 255, 0.7)','rgba(255, 159, 64, 0.7)','rgba(201, 203, 207, 0.7)','rgba(54, 162, 235, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }]},
+                data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: ['rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)', 'rgba(201, 203, 207, 0.7)', 'rgba(54, 162, 235, 0.7)'], borderColor: 'var(--background-content)', borderWidth: 2 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: 'var(--text-secondary)' } }, title: { display: true, text: 'Phân bố Giao thức Tấn Công APT', color: 'var(--text-primary)' } } }
             });
             console.log("APT Protocol Chart initialized.");
         }
     },
 
-    destroyAllCharts: function() {
+    destroyAllCharts: function () {
         for (const chartKey in this.charts) {
             if (this.charts[chartKey]) {
                 this.charts[chartKey].destroy();
@@ -244,7 +250,7 @@ const ChartManager = {
         console.log("All charts destroyed.");
     },
 
-    updateThreatTrends: function(processedTrendData) {
+    updateThreatTrends: function (processedTrendData) {
         const chart = this.charts.threatTrends;
         if (chart && document.getElementById('threatTrendsChart')) {
             chart.data.labels = processedTrendData.labels || [];
@@ -257,7 +263,7 @@ const ChartManager = {
         }
     },
 
-    updateSystemMetrics: function(timestamp, cpu, mem, net) {
+    updateSystemMetrics: function (timestamp, cpu, mem, net) {
         const chart = this.charts.systemMetrics;
         if (chart && document.getElementById('systemMetricsChart')) {
             const label = new Date(timestamp || Date.now()).toLocaleTimeString();
@@ -273,7 +279,7 @@ const ChartManager = {
             chart.update('none'); // 'none' for no animation, smoother updates
         }
     },
-    updateTrafficAnalysis: function(scanHistory) {
+    updateTrafficAnalysis: function (scanHistory) {
         const chart = this.charts.trafficAnalysis;
         if (chart && document.getElementById('trafficAnalysisChart')) {
             if (!scanHistory || scanHistory.length === 0) {
@@ -284,7 +290,7 @@ const ChartManager = {
             } else {
                 chart.data.labels = scanHistory.map((scan) => {
                     const date = new Date(scan.timestamp);
-                    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}`;
+                    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                 });
                 chart.data.datasets[0].data = scanHistory.map(scan => scan.normal);
                 chart.data.datasets[1].data = scanHistory.map(scan => scan.suspicious);
@@ -294,7 +300,7 @@ const ChartManager = {
             console.log("Traffic Analysis Chart (by Scan) updated.");
         }
     },
-    updateAptTypeDistribution: function(counts) {
+    updateAptTypeDistribution: function (counts) {
         const chart = this.charts.aptTypeDistribution;
         if (chart && document.getElementById('aptTypeDistributionChart')) {
             chart.data.labels = Object.keys(counts || {});
@@ -302,7 +308,7 @@ const ChartManager = {
             chart.update();
         }
     },
-    updateTopIpChart: function(chartInstanceKey, ipCounts) {
+    updateTopIpChart: function (chartInstanceKey, ipCounts) {
         const chart = this.charts[chartInstanceKey];
         const canvasId = chartInstanceKey === 'topAptSourceIp' ? 'topAptSourceIpChart' : 'topAptDestIpChart';
         if (chart && document.getElementById(canvasId)) {
@@ -311,7 +317,7 @@ const ChartManager = {
             chart.update();
         }
     },
-    updateAptProtocol: function(counts) {
+    updateAptProtocol: function (counts) {
         const chart = this.charts.aptProtocol;
         if (chart && document.getElementById('aptProtocolChart')) {
             chart.data.labels = Object.keys(counts || {});
@@ -319,7 +325,7 @@ const ChartManager = {
             chart.update();
         }
     },
-    clearAllChartData: function() {
+    clearAllChartData: function () {
         this.updateThreatTrends({ labels: [], critical: [], high: [], medium: [], low: [] });
         if (this.charts.systemMetrics) {
             this.charts.systemMetrics.data.labels = [];
@@ -338,7 +344,7 @@ const ChartManager = {
 
 // --- PAGE SPECIFIC INITIALIZERS & EVENT LISTENERS ---
 const PageInitializers = {
-    _getClonedButton: function(buttonId) {
+    _getClonedButton: function (buttonId) {
         const originalButton = document.getElementById(buttonId);
         if (!originalButton) {
             console.warn(`Button with id '${buttonId}' not found.`);
@@ -350,7 +356,7 @@ const PageInitializers = {
         return clonedButton;
     },
 
-    dashboard: function() {
+    dashboard: function () {
         console.log("Initializing dashboard elements and listeners...");
         detectionStatusElement = document.getElementById('detectionStatus');
         if (detectionStatusElement) detectionStatusText = detectionStatusElement.querySelector('.status-text');
@@ -397,7 +403,7 @@ const PageInitializers = {
         }
     },
 
-    setting: function() {
+    setting: function () {
         console.log("Initializing setting page elements and listeners...");
         ThemeManager.updateThemeSelectElement(); // Set theme dropdown
 
@@ -418,21 +424,25 @@ const PageInitializers = {
         // Load existing settings into fields
         if (window.electronAPI && typeof window.electronAPI.loadSettings === 'function') {
             window.electronAPI.loadSettings().then(settings => {
+                console.log("Renderer received settings for form:", settings); // Log để xem settings nhận được là gì
                 if (settings) {
                     if (themeSelectElement) themeSelectElement.value = settings.theme || 'dark';
+
+                    // Email
                     if (enableEmailNotif) enableEmailNotif.checked = !!settings.enableEmailNotifications;
                     if (emailSenderAddr) emailSenderAddr.value = settings.emailSenderAddress || '';
-                    // We generally don't pre-fill password fields for security.
-                    // if (emailSenderPass) emailSenderPass.value = settings.emailSenderPassword || '';
+                    // KHÔNG ĐIỀN LẠI MẬT KHẨU HOẶC TOKEN
+                    // if (emailSenderPass) emailSenderPass.value = settings.emailSenderPassword || ''; // KHÔNG LÀM ĐIỀU NÀY
                     if (emailReceiverAddr) emailReceiverAddr.value = settings.emailReceiverAddress || '';
-                    if (emailSmtpServer) emailSmtpServer.value = settings.emailSmtpServer || '';
-                    if (emailSmtpPort) emailSmtpPort.value = settings.emailSmtpPort || '';
+                    if (emailSmtpServer) emailSmtpServer.value = settings.emailSmtpServer || 'smtp.gmail.com';
+                    if (emailSmtpPort) emailSmtpPort.value = settings.emailSmtpPort || 587;
 
+                    // Telegram
                     if (enableTelegramNotif) enableTelegramNotif.checked = !!settings.enableTelegramNotifications;
-                    if (telegramBotToken) telegramBotToken.value = settings.telegramBotToken || '';
+                    // if (telegramBotToken) telegramBotToken.value = settings.telegramBotToken || ''; // KHÔNG LÀM ĐIỀU NÀY
                     if (telegramChatId) telegramChatId.value = settings.telegramChatId || '';
                 }
-            }).catch(err => console.error("Error loading settings for page:", err));
+            }).catch(err => console.error("Error loading settings for settings page form:", err));
         }
 
 
@@ -453,7 +463,7 @@ const PageInitializers = {
 
                 console.log("Saving settings:", settingsToSave);
                 // Clear password field after attempting to save for some basic security
-                if(emailSenderPass) emailSenderPass.value = '';
+                if (emailSenderPass) emailSenderPass.value = '';
 
                 if (window.electronAPI) {
                     window.electronAPI.saveSettings(settingsToSave);
@@ -469,7 +479,7 @@ const PageInitializers = {
 
 // --- UI UPDATE UTILITIES ---
 const UIUpdater = {
-    updateDetectionStatus: function(isActive, text) {
+    updateDetectionStatus: function (isActive, text) {
         if (!detectionStatusElement || !detectionStatusText) { return; }
         detectionStatusText.textContent = text;
         const classes = detectionStatusElement.classList;
@@ -479,9 +489,9 @@ const UIUpdater = {
         else { classes.add('inactive'); }
     },
 
-    clearTable: function(tbody) { if (tbody) tbody.innerHTML = ''; },
+    clearTable: function (tbody) { if (tbody) tbody.innerHTML = ''; },
 
-    updateRecentAlertsTable: function(alerts) {
+    updateRecentAlertsTable: function (alerts) {
         if (!recentAlertsTableBody) return;
         this.clearTable(recentAlertsTableBody);
         if (!alerts || alerts.length === 0) {
@@ -505,7 +515,7 @@ const UIUpdater = {
         });
     },
 
-    getSeverityDetailsFromAlert: function(alert) {
+    getSeverityDetailsFromAlert: function (alert) {
         let severityText = 'Low', severityClass = 'severity-low';
         const prediction = alert.Prediction ? String(alert.Prediction).toLowerCase() : '';
         const probability = typeof alert.Prediction_Probability === 'number' ? alert.Prediction_Probability : 0;
@@ -522,7 +532,7 @@ const UIUpdater = {
         return { text: severityText, class: severityClass, level: severityText };
     },
 
-    updateDashboardSummary: function(data) {
+    updateDashboardSummary: function (data) {
         if (totalThreatsElement) totalThreatsElement.textContent = data.totalThreats ?? 'N/A';
         if (criticalAlertsElement) criticalAlertsElement.textContent = data.criticalAlerts ?? 'N/A';
         if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = `${data.unresolvedThreats || data.totalThreats || 0} total threats detected`;
@@ -544,7 +554,7 @@ const UIUpdater = {
             if (totalTodayEl) totalTodayEl.textContent = data.globalThreatMap.totalToday || 0;
         }
     },
-    processCsvDataForThreatTrendsChart: function(csvRows) {
+    processCsvDataForThreatTrendsChart: function (csvRows) {
         if (!csvRows || csvRows.length === 0) return { labels: [], critical: [], high: [], medium: [], low: [] };
         const aggregatedData = {};
         csvRows.forEach(row => {
@@ -563,7 +573,7 @@ const UIUpdater = {
         const sortedDates = Object.keys(aggregatedData).sort((a, b) => new Date(a) - new Date(b));
         const result = { labels: [], critical: [], high: [], medium: [], low: [] };
         sortedDates.forEach(date => {
-            result.labels.push(new Date(date).toLocaleDateString([], {month:'short', day:'numeric'})); // Format date
+            result.labels.push(new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' })); // Format date
             result.critical.push(aggregatedData[date].Critical);
             result.high.push(aggregatedData[date].High);
             result.medium.push(aggregatedData[date].Medium);
@@ -577,7 +587,7 @@ const UIUpdater = {
 const IPCManager = {
     initialSettingsData: null,
 
-    setupListeners: function() {
+    setupListeners: function () {
         if (!window.electronAPI) {
             console.error("window.electronAPI is not defined.");
             return;
@@ -599,7 +609,7 @@ const IPCManager = {
                 // Python process might log an error but still complete or main.js handles the failure state.
                 console.error("Error message received:", message.trim());
             } else if (message.includes("Starting Prediction Module")) {
-                 UIUpdater.updateDetectionStatus(null, 'Analyzing...');
+                UIUpdater.updateDetectionStatus(null, 'Analyzing...');
             }
         });
 
@@ -641,13 +651,13 @@ const IPCManager = {
 
         window.electronAPI.onSettingsUpdated((settings) => {
             console.log("Settings updated from main:", settings);
-            this.initialSettingsData = {...this.initialSettingsData, ...settings}; // Merge updates
+            this.initialSettingsData = { ...this.initialSettingsData, ...settings }; // Merge updates
             if (settings?.theme) {
                 ThemeManager.applyTheme(settings.theme);
                 if (Navigation.activePage === 'setting') ThemeManager.updateThemeSelectElement();
             }
-            if (settings?.scanHistory && Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()){
-                 ChartManager.updateTrafficAnalysis(settings.scanHistory);
+            if (settings?.scanHistory && Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()) {
+                ChartManager.updateTrafficAnalysis(settings.scanHistory);
             }
             // Repopulate settings page if it's active and other settings changed
             if (Navigation.activePage === 'setting') PageInitializers.setting();
@@ -659,7 +669,7 @@ const IPCManager = {
             if (settings) {
                 ThemeManager.applyTheme(settings.theme || 'dark');
                 if (settings.scanHistory && Navigation.activePage === 'dashboard' && ChartManager.areChartsInitialized()) {
-                     ChartManager.updateTrafficAnalysis(settings.scanHistory);
+                    ChartManager.updateTrafficAnalysis(settings.scanHistory);
                 }
             }
         });

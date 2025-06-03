@@ -4,7 +4,7 @@ import time
 # --- Capture Settings ---
 INTERFACE = None # Auto-select or specify, e.g., "eth0", "Wi-Fi"
 IDLE_TIMEOUT = 60 # Seconds before a flow is considered inactive
-CAPTURE_DURATION = 10 # Seconds to capture packets (adjust as needed)
+CAPTURE_DURATION = 120 # Seconds to capture packets (adjust as needed)
 OUTPUT_CSV_FILE = 'network_flows.csv' # Relative path within backend/
 
 # --- CSV Header Definition ---
