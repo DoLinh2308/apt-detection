@@ -3,13 +3,14 @@
 // --- GLOBAL CONFIG & UTILITIES ---
 const MAX_SYSTEM_METRIC_POINTS = 30; // Max data points for system metrics chart
 
-// --- DOM Element References (sẽ được khởi tạo trong các hàm page-specific) ---
 let statusArea; // Log debug
 // Dashboard elements
 let detectionStatusElement, detectionStatusText, startAnalysisButton, stopAnalysisButton;
 let totalThreatsElement, unresolvedThreatsElement, criticalAlertsElement;
 let systemStatusTextElement, cpuUsageElement, memoryUsageElement, networkUsageElement;
 let recentAlertsTableBody;
+let logOutputArea; // For dedicated log page
+let detailedAlertsTableBody, alertFilterSeverityElement, refreshAlertsButtonElement; // For dedicated alerts page
 
 // --- NAVIGATION & PAGE LOADING ---
 const Navigation = {
@@ -60,6 +61,10 @@ const Navigation = {
                 PageInitializers.dashboard();
             } else if (pageName === 'setting') {
                 PageInitializers.setting();
+            } else if (pageName === 'log') {
+                PageInitializers.log();
+            } else if (pageName === 'alert') {
+                PageInitializers.alert();
             }
             // Re-apply theme after loading new content, especially if charts are involved
             ThemeManager.applyCurrentTheme();
@@ -141,12 +146,15 @@ const ChartManager = {
         aptTypeDistribution: null,
         topAptSourceIp: null,
         topAptDestIp: null,
-        aptProtocol: null
+        aptProtocol: null,
+        alertSeverityDistribution: null,
+        overallProtocolDistribution: null
     },
 
     areChartsInitialized: function () {
-        return !!document.getElementById('threatTrendsChart'); // Check one prominent chart
+        return !!document.getElementById('threatTrendsChart');
     },
+
 
     initializeAllCharts: function () {
         console.log("Attempting to initialize all charts...");
@@ -238,6 +246,68 @@ const ChartManager = {
             });
             console.log("APT Protocol Chart initialized.");
         }
+        const ctxAlertSeverity = document.getElementById('alertSeverityDistributionChart')?.getContext('2d');
+        if (ctxAlertSeverity) {
+            this.charts.alertSeverityDistribution = new Chart(ctxAlertSeverity, {
+                type: 'pie',
+                data: {
+                    labels: [], // e.g., ['Critical', 'High', 'Medium', 'Low']
+                    datasets: [{
+                        label: 'Alert Count',
+                        data: [],
+                        backgroundColor: ['var(--critical-color)', 'var(--high-color)', 'var(--medium-color)', 'var(--low-color)', 'var(--info-color)'],
+                        borderColor: 'var(--background-content)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: 'var(--text-secondary)' } },
+                        title: { display: true, text: 'Alert Severity Distribution', color: 'var(--text-primary)' }
+                    }
+                }
+            });
+            console.log("Alert Severity Distribution Chart initialized.");
+        }
+        const ctxOverallProto = document.getElementById('overallProtocolDistributionChart')?.getContext('2d');
+        if (ctxOverallProto) {
+            this.charts.overallProtocolDistribution = new Chart(ctxOverallProto, {
+                type: 'bar',
+                data: {
+                    labels: [], // e.g., ['TCP', 'UDP', 'ICMP', 'Other']
+                    datasets: [{
+                        label: 'Flow Count',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',  // Blue for TCP
+                            'rgba(255, 159, 64, 0.7)', // Orange for UDP
+                            'rgba(75, 192, 192, 0.7)',  // Green for ICMP
+                            'rgba(201, 203, 207, 0.7)'  // Grey for Other
+                        ],
+                        borderColor: [
+                            'rgb(54, 162, 235)',
+                            'rgb(255, 159, 64)',
+                            'rgb(75, 192, 192)',
+                            'rgb(201, 203, 207)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }, // Or true if preferred
+                        title: { display: true, text: 'Overall Protocol Distribution', color: 'var(--text-primary)' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Protocol', color: 'var(--text-secondary)' }, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } },
+                        y: { title: { display: true, text: 'Number of Flows', color: 'var(--text-secondary)' }, beginAtZero: true, ticks: { color: 'var(--text-secondary)' }, grid: { color: 'var(--border-color)' } }
+                    }
+                }
+            });
+            console.log("Overall Protocol Distribution Chart initialized.");
+        }
     },
 
     destroyAllCharts: function () {
@@ -245,6 +315,14 @@ const ChartManager = {
             if (this.charts[chartKey]) {
                 this.charts[chartKey].destroy();
                 this.charts[chartKey] = null;
+            }
+            if (this.charts.alertSeverityDistribution) {
+                this.charts.alertSeverityDistribution.destroy();
+                this.charts.alertSeverityDistribution = null;
+            }
+            if (this.charts.overallProtocolDistribution) {
+                this.charts.overallProtocolDistribution.destroy();
+                this.charts.overallProtocolDistribution = null;
             }
         }
         console.log("All charts destroyed.");
@@ -262,7 +340,35 @@ const ChartManager = {
             console.log("Threat Trends Chart updated.");
         }
     },
+    updateAlertSeverityDistribution: function (severityCounts) {
+        const chart = this.charts.alertSeverityDistribution;
+        if (chart && document.getElementById('alertSeverityDistributionChart')) {
+            const sortedSeverities = ['Critical', 'High', 'Medium', 'Low', 'Info']; // Define order
+            chart.data.labels = sortedSeverities.filter(s => severityCounts && severityCounts[s]); // Only show severities with counts
+            chart.data.datasets[0].data = sortedSeverities.map(s => (severityCounts && severityCounts[s]) || 0).filter(count => count > 0);
+            // You might need to adjust backgroundColors if labels are filtered
+            chart.update();
+            console.log("Alert Severity Distribution Chart updated.");
+        }
+    },
 
+    updateOverallProtocolDistribution: function (protocolCounts) {
+        const chart = this.charts.overallProtocolDistribution;
+        if (chart && document.getElementById('overallProtocolDistributionChart')) {
+            if (!protocolCounts || Object.keys(protocolCounts).length === 0) {
+                chart.data.labels = [];
+                chart.data.datasets[0].data = [];
+            } else {
+                const sortedProtocols = Object.entries(protocolCounts)
+                    .sort(([, a], [, b]) => b - a) // Sort by count desc
+                    .slice(0, 10); // Take top N, e.g., top 10
+                chart.data.labels = sortedProtocols.map(entry => entry[0]);
+                chart.data.datasets[0].data = sortedProtocols.map(entry => entry[1]);
+            }
+            chart.update();
+            console.log("Overall Protocol Distribution Chart updated.");
+        }
+    },
     updateSystemMetrics: function (timestamp, cpu, mem, net) {
         const chart = this.charts.systemMetrics;
         if (chart && document.getElementById('systemMetricsChart')) {
@@ -338,6 +444,8 @@ const ChartManager = {
         this.updateTopIpChart('topAptSourceIp', {});
         this.updateTopIpChart('topAptDestIp', {});
         this.updateAptProtocol({});
+        this.updateAlertSeverityDistribution({});
+        this.updateOverallProtocolDistribution({});
         console.log("Cleared data for relevant charts (excluding scan history).");
     }
 };
@@ -373,15 +481,41 @@ const PageInitializers = {
         if (recentAlertsTable) recentAlertsTableBody = recentAlertsTable.getElementsByTagName('tbody')[0];
         statusArea = document.getElementById('statusArea');
 
+        // Lấy tham chiếu đến các phần tử hiển thị lưu lượng
+        const normalTrafficElInit = document.getElementById('normalTraffic');
+        const suspiciousTrafficElInit = document.getElementById('suspiciousTraffic');
+        const maliciousTrafficElInit = document.getElementById('maliciousTraffic');
+
+        // --- THAY ĐỔI MỚI: Lấy tham chiếu đến các phần tử hiển thị phần trăm (giả định ID) ---
+        const normalTrafficPercElInit = document.getElementById('normalTrafficPercentage'); // Giả định ID
+        const suspiciousTrafficPercElInit = document.getElementById('suspiciousTrafficPercentage'); // Giả định ID
+        const maliciousTrafficPercElInit = document.getElementById('maliciousTrafficPercentage'); // Giả định ID
+
+        // Đặt giá trị ban đầu là 0 cho các thống kê chính
+        if (normalTrafficElInit) normalTrafficElInit.textContent = '0.00 MB';
+        if (suspiciousTrafficElInit) suspiciousTrafficElInit.textContent = '0.00 MB';
+        if (maliciousTrafficElInit) maliciousTrafficElInit.textContent = '0.00 MB';
+
+        // --- THAY ĐỔI MỚI: Xóa nội dung của các phần tử hiển thị phần trăm ---
+        if (normalTrafficPercElInit) normalTrafficPercElInit.textContent = ''; // Xóa nội dung
+        if (suspiciousTrafficPercElInit) suspiciousTrafficPercElInit.textContent = ''; // Xóa nội dung
+        if (maliciousTrafficPercElInit) maliciousTrafficPercElInit.textContent = ''; // Xóa nội dung
+
+        if (totalThreatsElement) totalThreatsElement.textContent = '0';
+        if (criticalAlertsElement) criticalAlertsElement.textContent = '0';
+        if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = '0 total threats detected';
+        // --- KẾT THÚC THAY ĐỔI ---
+
         ChartManager.initializeAllCharts();
 
         if (startAnalysisButton) {
             startAnalysisButton.addEventListener('click', () => {
                 UIUpdater.updateDetectionStatus(null, 'Starting...');
-                if (recentAlertsTableBody) UIUpdater.clearTable(recentAlertsTableBody);
-                ChartManager.clearAllChartData(); // Clear previous non-historical results visuals
+                // Không cần clear ở đây nữa nếu onClearResults đã đủ mạnh
+                // if (recentAlertsTableBody) UIUpdater.clearTable(recentAlertsTableBody);
+                // ChartManager.clearAllChartData(); // onClearResults cũng gọi cái này
 
-                if (window.electronAPI) window.electronAPI.startAnalysis();
+                if (window.electronAPI) window.electronAPI.startAnalysis(); // Gửi lệnh start, main.js sẽ gửi 'clear-results'
                 startAnalysisButton.disabled = true;
                 startAnalysisButton.textContent = "Analysis Running...";
                 if (stopAnalysisButton) stopAnalysisButton.disabled = false;
@@ -474,6 +608,37 @@ const PageInitializers = {
                 }
             });
         }
+    },
+    log: function () {
+        console.log("Initializing log page elements...");
+        logOutputArea = document.getElementById('logOutputArea');
+        // Optionally, fill with any buffered logs or request recent logs
+        if (logOutputArea && IPCManager.logBuffer) { // Assuming a logBuffer in IPCManager
+            logOutputArea.value = IPCManager.logBuffer.join('\n');
+            logOutputArea.scrollTop = logOutputArea.scrollHeight;
+        }
+    },
+
+    alert: function () {
+        console.log("Initializing alert page elements...");
+        detailedAlertsTableBody = document.getElementById('detailedAlertsTableBody');
+        alertFilterSeverityElement = document.getElementById('alert-filter-severity');
+        refreshAlertsButtonElement = document.getElementById('refreshAlertsButton');
+
+        if (refreshAlertsButtonElement) {
+            refreshAlertsButtonElement.addEventListener('click', () => {
+                UIUpdater.updateDetailedAlertsTable(IPCManager.currentAlertsData || [], alertFilterSeverityElement.value);
+                // Maybe re-request data if it can change:
+                // if (window.electronAPI) window.electronAPI.requestLatestResults();
+            });
+        }
+        if (alertFilterSeverityElement) {
+            alertFilterSeverityElement.addEventListener('change', () => {
+                UIUpdater.updateDetailedAlertsTable(IPCManager.currentAlertsData || [], alertFilterSeverityElement.value);
+            });
+        }
+        // Initial population
+        UIUpdater.updateDetailedAlertsTable(IPCManager.currentAlertsData || [], 'all');
     }
 };
 
@@ -580,12 +745,75 @@ const UIUpdater = {
             result.low.push(aggregatedData[date].Low);
         });
         return result;
+    },
+    addLogMessage: function (message) {
+        if (logOutputArea && Navigation.activePage === 'log') {
+            logOutputArea.value += message.trim() + '\n';
+            logOutputArea.scrollTop = logOutputArea.scrollHeight;
+        }
+        // Also update the dashboard status area if it exists and is on dashboard
+        if (statusArea && Navigation.activePage === 'dashboard') {
+            statusArea.textContent += message.trim() + '\n';
+            statusArea.scrollTop = statusArea.scrollHeight;
+        }
+    },
+
+    updateDetailedAlertsTable: function (alerts, severityFilter = 'all') {
+        if (!detailedAlertsTableBody) {
+            if (Navigation.activePage === 'alert') console.warn("Detailed alerts table body not found, cannot update.");
+            return;
+        }
+        this.clearTable(detailedAlertsTableBody);
+        if (!alerts || alerts.length === 0) {
+            const row = detailedAlertsTableBody.insertRow();
+            row.insertCell().colSpan = 9; // Adjusted colspan
+            row.insertCell().textContent = 'No suspicious activities detected or data not loaded.';
+            return;
+        }
+
+        const filteredAlerts = alerts.filter(alert => {
+            if (severityFilter === 'all') return true;
+            const severityDetails = this.getSeverityDetailsFromAlert(alert);
+            return severityDetails.level === severityFilter;
+        });
+
+
+        if (filteredAlerts.length === 0) {
+            const row = detailedAlertsTableBody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 9; // Adjusted colspan
+            cell.textContent = `No alerts matching filter: '${severityFilter}'.`;
+            cell.style.textAlign = 'center'; cell.style.color = 'var(--text-muted)';
+            return;
+        }
+
+
+        filteredAlerts.forEach(alert => {
+            const row = detailedAlertsTableBody.insertRow();
+            const severity = this.getSeverityDetailsFromAlert(alert);
+            row.insertCell().innerHTML = `<span class="severity-badge ${severity.class}">${severity.text}</span>`;
+            row.insertCell().textContent = alert.Prediction || 'N/A';
+            row.insertCell().textContent = alert['Src IP'] || alert['Source IP'] || 'N/A';
+            row.insertCell().textContent = alert['Src Port'] || alert['Source Port'] || 'N/A';
+            row.insertCell().textContent = alert['Dst IP'] || alert['Destination IP'] || 'N/A';
+            row.insertCell().textContent = alert['Dst Port'] || alert['Destination Port'] || 'N/A';
+            let protocolDisplay = alert.Protocol;
+            if (alert.Protocol === '6' || String(alert.Protocol).toLowerCase() === 'tcp') protocolDisplay = 'TCP';
+            else if (alert.Protocol === '17' || String(alert.Protocol).toLowerCase() === 'udp') protocolDisplay = 'UDP';
+            else if (alert.Protocol === '1' || String(alert.Protocol).toLowerCase() === 'icmp') protocolDisplay = 'ICMP';
+            row.insertCell().textContent = protocolDisplay || 'N/A';
+            row.insertCell().textContent = alert.Timestamp ? new Date(alert.Timestamp).toLocaleString() : 'N/A';
+            row.insertCell().innerHTML = `<a href="#" class="details-link" data-flowid="${alert['Flow ID'] || ''}" onclick="alert('Details for ${alert['Flow ID'] || 'N/A'} - implement modal or side panel.')">Details</a>`;
+        });
     }
 };
 
 // --- IPC EVENT HANDLERS ---
 const IPCManager = {
     initialSettingsData: null,
+    logBuffer: [], // Buffer for logs before log page is loaded
+    MAX_LOG_BUFFER_SIZE: 200,
+    currentAlertsData: [], // Store the latest alerts for the alert page
 
     setupListeners: function () {
         if (!window.electronAPI) {
@@ -596,7 +824,10 @@ const IPCManager = {
         window.electronAPI.onStatusUpdate((message) => {
             console.log("Status:", message.trim());
             if (statusArea) { statusArea.textContent += message + '\n'; statusArea.scrollTop = statusArea.scrollHeight; }
-
+            this.logBuffer.push(message.trim());
+            if (this.logBuffer.length > this.MAX_LOG_BUFFER_SIZE) {
+                this.logBuffer.shift(); // Keep buffer size limited
+            }
             if (message.includes("Starting Network Analysis Pipeline")) {
                 UIUpdater.updateDetectionStatus(null, 'Detection Starting...');
                 if (startAnalysisButton) startAnalysisButton.disabled = true;
@@ -618,28 +849,62 @@ const IPCManager = {
             if (totalThreatsElement) totalThreatsElement.textContent = '0';
             if (criticalAlertsElement) criticalAlertsElement.textContent = '0';
             if (unresolvedThreatsElement) unresolvedThreatsElement.textContent = '0 total threats detected';
+
+            const normalTrafficElClear = document.getElementById('normalTraffic');
+            const suspiciousTrafficElClear = document.getElementById('suspiciousTraffic');
+            const maliciousTrafficElClear = document.getElementById('maliciousTraffic');
+            if (normalTrafficElClear) normalTrafficElClear.textContent = '0.00 MB';
+            if (suspiciousTrafficElClear) suspiciousTrafficElClear.textContent = '0.00 MB';
+            if (maliciousTrafficElClear) maliciousTrafficElClear.textContent = '0.00 MB';
+
+            // --- THAY ĐỔI MỚI: Xóa nội dung của các phần tử hiển thị phần trăm ---
+            const normalTrafficPercElClear = document.getElementById('normalTrafficPercentage'); // Giả định ID
+            const suspiciousTrafficPercElClear = document.getElementById('suspiciousTrafficPercentage'); // Giả định ID
+            const maliciousTrafficPercElClear = document.getElementById('maliciousTrafficPercentage'); // Giả định ID
+            if (normalTrafficPercElClear) normalTrafficPercElClear.textContent = ''; // Xóa nội dung
+            if (suspiciousTrafficPercElClear) suspiciousTrafficPercElClear.textContent = ''; // Xóa nội dung
+            if (maliciousTrafficPercElClear) maliciousTrafficPercElClear.textContent = ''; // Xóa nội dung
+            // --- KẾT THÚC THAY ĐỔI ---
+
             ChartManager.clearAllChartData();
         });
 
         window.electronAPI.onResultsData((data) => {
-            console.log("Results Data Received (partial):", { keys: Object.keys(data) });
-            UIUpdater.updateDashboardSummary(data);
-            if (data.suspicious) UIUpdater.updateRecentAlertsTable(data.suspicious);
-
-            if (data.suspicious && Array.isArray(data.suspicious)) {
-                const trendData = UIUpdater.processCsvDataForThreatTrendsChart(data.suspicious);
-                ChartManager.updateThreatTrends(trendData);
+            console.log("Results Data Received (partial for new features):", { //
+                hasSuspicious: !!data.suspicious, //
+                hasAlertSeverity: !!data.alertSeverityCounts, //
+                hasOverallProtocol: !!data.overallProtocolCounts //
+            });
+            UIUpdater.updateDashboardSummary(data); // Existing
+            if (data.suspicious) {
+                UIUpdater.updateRecentAlertsTable(data.suspicious); // Existing (for dashboard)
+                this.currentAlertsData = data.suspicious; // Store for dedicated alert page
+                if (Navigation.activePage === 'alert') { // Update detailed alerts if page is active
+                    UIUpdater.updateDetailedAlertsTable(this.currentAlertsData, alertFilterSeverityElement ? alertFilterSeverityElement.value : 'all'); //
+                }
             }
-            if (data.scanHistory) ChartManager.updateTrafficAnalysis(data.scanHistory);
-            if (data.aptTypeCounts) ChartManager.updateAptTypeDistribution(data.aptTypeCounts);
-            if (data.topSourceAPTIPs) ChartManager.updateTopIpChart('topAptSourceIp', data.topSourceAPTIPs);
-            if (data.topDestAPTIPs) ChartManager.updateTopIpChart('topAptDestIp', data.topDestAPTIPs);
-            if (data.aptProtocolCounts) ChartManager.updateAptProtocol(data.aptProtocolCounts);
 
-            if (startAnalysisButton) { startAnalysisButton.disabled = false; startAnalysisButton.textContent = "Start Analysis"; }
-            if (stopAnalysisButton) stopAnalysisButton.disabled = true;
-            UIUpdater.updateDetectionStatus(false, 'Results Loaded'); // More accurate status
+            if (data.suspicious && Array.isArray(data.suspicious)) { //
+                const trendData = UIUpdater.processCsvDataForThreatTrendsChart(data.suspicious); //
+                ChartManager.updateThreatTrends(trendData); //
+            }
+            if (data.scanHistory) ChartManager.updateTrafficAnalysis(data.scanHistory); //
+            if (data.aptTypeCounts) ChartManager.updateAptTypeDistribution(data.aptTypeCounts); //
+            if (data.topSourceAPTIPs) ChartManager.updateTopIpChart('topAptSourceIp', data.topSourceAPTIPs); //
+            if (data.topDestAPTIPs) ChartManager.updateTopIpChart('topAptDestIp', data.topDestAPTIPs); //
+            if (data.aptProtocolCounts) ChartManager.updateAptProtocol(data.aptProtocolCounts); //
+
+            // New Chart Updates
+            if (data.alertSeverityCounts) ChartManager.updateAlertSeverityDistribution(data.alertSeverityCounts); //
+            if (data.overallProtocolCounts) ChartManager.updateOverallProtocolDistribution(data.overallProtocolCounts); //
+
+
+            if (startAnalysisButton) { startAnalysisButton.disabled = false; startAnalysisButton.textContent = "Start Analysis"; } //
+            if (stopAnalysisButton) stopAnalysisButton.disabled = true; //
+            UIUpdater.updateDetectionStatus(false, 'Results Loaded'); //
         });
+
+
 
         window.electronAPI.onSystemMetrics((metrics) => {
             if (systemStatusTextElement) systemStatusTextElement.textContent = "Active";

@@ -23,7 +23,7 @@ def format_suspicious_flows_for_email_html(suspicious_df_sample):
     if suspicious_df_sample.empty:
         return "<p>No specific suspicious flow examples to display.</p>"
     
-    html_table = "<h3>Examples of Suspicious Flows:</h3>"
+    html_table = "<h3>Một số luồng nguy hiểm đã được phát hiện:</h3>"
     try:
         html_table += suspicious_df_sample.to_html(index=False, border=1, classes="dataframe", escape=True)
     except Exception as e:
@@ -136,12 +136,8 @@ def notify_by_email_on_prediction_completion(all_flows_df, suspicious_flows_df):
     if num_suspicious > 0:
         subject = f"🚨 Security Alert: {num_suspicious} Suspicious Network Flows Detected"
         body_html = f"""
-        <p>Network security scan has identified <strong>{num_suspicious} suspicious flows</strong> out of {num_total} total flows analyzed.</p>
-        <p>Detailed reports have been saved:</p>
-        <ul>
-            <li>All predictions: <code>{predictions_csv}</code></li>
-            <li>Suspicious flows only: <code>{suspicious_csv}</code></li>
-        </ul>
+        <p>Quét an ninh mạng đã xác định được <strong>{num_suspicious} luồng đáng ngờ</strong> trong tổng số {num_total} luồng được phân tích.</p>
+        
         """
         # Take a small sample for the email body
         email_sample_size = getattr(config, 'EMAIL_ALERT_SAMPLE_SIZE', 5)

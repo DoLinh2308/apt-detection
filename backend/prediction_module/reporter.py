@@ -64,31 +64,31 @@ def analyze_and_save_results(df_original_with_preds, predictions, probabilities)
     # Filter display_cols to only those present in suspicious_flows
     # These columns will be used for console output and Telegram alerts
     # The email notification will receive the full suspicious_flows df and decide on columns itself
-    cols_for_console_telegram_alert = [col for col in console_display_cols if col in suspicious_flows.columns]
+    # cols_for_console_telegram_alert = [col for col in console_display_cols if col in suspicious_flows.columns]
     
-    sample_for_console_and_telegram = pd.DataFrame() # Initialize as empty
+    # sample_for_console_and_telegram = pd.DataFrame() # Initialize as empty
 
-    if num_suspicious > 0:
-        logging.info("Examples of suspicious flows (first 10 for console):")
+    # if num_suspicious > 0:
+    #     logging.info("Examples of suspicious flows (first 10 for console):")
         
-        if cols_for_console_telegram_alert:
-            # For console, print up to 10
-            print(suspicious_flows[cols_for_console_telegram_alert].head(10).to_string())
-            # For Telegram, use a configured sample size or default
-            telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
-            sample_for_console_and_telegram = suspicious_flows[cols_for_console_telegram_alert].head(telegram_sample_size)
-            if not sample_for_console_and_telegram.empty:
-                 process_attack_detection(sample_for_console_and_telegram)
-        else:
-            # Fallback if desired display columns are not found (less likely)
-            logging.warning("Essential columns for formatted alert display not found. Printing generic suspicious flow data.")
-            print(suspicious_flows.head(10).to_string()) # Print whatever is available
-            # If specific columns are critical for process_attack_detection, it might fail or need adjustment
-            # For now, try sending the head() of the raw suspicious_flows.
-            telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
-            sample_for_console_and_telegram = suspicious_flows.head(telegram_sample_size)
-            if not sample_for_console_and_telegram.empty:
-                 process_attack_detection(sample_for_console_and_telegram)
+    #     if cols_for_console_telegram_alert:
+    #         # For console, print up to 10
+    #         print(suspicious_flows[cols_for_console_telegram_alert].head(10).to_string())
+    #         # For Telegram, use a configured sample size or default
+    #         telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
+    #         sample_for_console_and_telegram = suspicious_flows[cols_for_console_telegram_alert].head(telegram_sample_size)
+    #         if not sample_for_console_and_telegram.empty:
+    #              process_attack_detection(sample_for_console_and_telegram)
+    #     else:
+    #         # Fallback if desired display columns are not found (less likely)
+    #         logging.warning("Essential columns for formatted alert display not found. Printing generic suspicious flow data.")
+    #         print(suspicious_flows.head(10).to_string()) # Print whatever is available
+    #         # If specific columns are critical for process_attack_detection, it might fail or need adjustment
+    #         # For now, try sending the head() of the raw suspicious_flows.
+    #         telegram_sample_size = getattr(config, 'TELEGRAM_ALERT_SAMPLE_SIZE', 10)
+    #         sample_for_console_and_telegram = suspicious_flows.head(telegram_sample_size)
+    #         if not sample_for_console_and_telegram.empty:
+    #              process_attack_detection(sample_for_console_and_telegram)
     
     # --- Send Email Notification ---
     # The email function receives the full original DF with predictions, and the suspicious flows DF.

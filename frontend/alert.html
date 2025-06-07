@@ -1,7 +1,43 @@
-<div class="page-header">
-    <h1>Alerts Management</h1>
-    <p>View and manage all security alerts.</p>
-</div>
-<div class="page-content-area">
-    <p>Detailed list of alerts will be displayed here.</p>
+<div class="page-container">
+    <div class="page-header">
+        <h2>Detailed Alerts</h2>
+        <div class="alert-filters">
+            <label for="alert-filter-severity">Severity:</label>
+            <select id="alert-filter-severity">
+                <option value="all">All</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+            <button id="refreshAlertsButton">Refresh Alerts</button>
+        </div>
     </div>
+    <div class="card">
+        <div class="card-header">
+            <h3>All Detected Suspicious Activities</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="styled-table" id="detailedAlertsTable">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Prediction</th>
+                            <th>Source IP</th>
+                            <th>Source Port</th>
+                            <th>Dest. IP</th>
+                            <th>Dest. Port</th>
+                            <th>Protocol</th>
+                            <th>Timestamp</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailedAlertsTableBody">
+                        <tr><td colspan="9" style="text-align:center;">No alerts to display or data not yet loaded.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

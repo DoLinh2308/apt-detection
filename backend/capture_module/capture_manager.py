@@ -107,9 +107,9 @@ def start_capture():
             print(f"Created output directory: {output_dir}")
         except OSError as e:
             print(f"ERROR: Could not create output directory '{output_dir}': {e}", file=sys.stderr)
-            return # Cannot proceed without output directory
+            return 
 
-    csvfile = None # Initialize to None
+    csvfile = None 
     writer = None
 
     try:
@@ -166,7 +166,5 @@ def start_capture():
         import traceback
         traceback.print_exc()
     finally:
-        # The 'with open...' block handles closing the file automatically
-        # if it was opened successfully.
         print("Capture process cleanup complete.")
 

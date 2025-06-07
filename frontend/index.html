@@ -40,7 +40,6 @@
             <nav class="main-nav">
                 <button href="index.html" id="nav-dashboard" class="nav-button active">📊 Dashboard</button>
                 <button href="alert.html" id="nav-alert" class="nav-button">🚨 Alerts</button>
-                <button href="network.html" id="nav-network" class="nav-button">🌐 Network</button>
                 <button href="log.html" id="nav-log" class="nav-button">📄 Logs</button>
                 <button href="setting.html" id="nav-setting" class="nav-button">⚙️ Settings</button>
             </nav>
@@ -98,47 +97,17 @@
                     <canvas id="trafficAnalysisChart"></canvas>
                     <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                         <div>
-                            <span style="color: #4caf50;">Normal Traffic</span>: <span id="normalTraffic">1.423
-                                GB</span> (+5.2%
-                            from average)
-                        </div>
-                        <div>
-                            <span style="color: #ffc107;">Suspicious</span>: <span id="suspiciousTraffic">62 MB</span>
-                            (+12%
-                            from average)
-                        </div>
-                        <div>
-                            <span style="color: #dc3545;">Malicious</span>: <span id="maliciousTraffic">12 MB</span>
-                            (-3.5% from
-                            average)
-                        </div>
+                <span style="color: #4caf50;">Normal Traffic</span>: <span id="normalTraffic">1.423 GB</span> 
+            </div>
+            <div>
+                <span style="color: #ffc107;">Suspicious</span>: <span id="suspiciousTraffic">62 MB</span> 
+            </div>
+            <div>
+                <span style="color: #dc3545;">Malicious</span>: <span id="maliciousTraffic">12 MB</span>
+            </div>
                     </div>
                 </div>
 
-                <!-- New Global Threat Map Card -->
-                <div class="card chart-card">
-                    <div class="card-header">
-                        <h3>Global Threat Map</h3>
-                        <span>Last 24 Hours</span>
-                    </div>
-                    <div style="text-align: center; padding: 20px;">
-                        <span style="font-size: 2em;">🌐</span>
-                        <p>Interactive threat map visualization would appear here</p>
-                        <p>Showing global attack origins and targeted systems</p>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                        <div>Active Attacks: <span id="activeAttacks">24</span></div>
-                        <div>Countries: <span id="countries">8</span></div>
-                        <div>Total Today: <span id="totalToday">156</span></div>
-                    </div>
-                </div>
-                <div class="card chart-card wide">
-                    <div class="card-header">
-                        <h3>Threat Trends</h3>
-                        <span>Last 30 days</span>
-                    </div>
-                    <canvas id="threatTrendsChart"></canvas>
-                </div>
                 <div class="card chart-card">
                     <div class="card-header">
                         <h3>System Metrics</h3>

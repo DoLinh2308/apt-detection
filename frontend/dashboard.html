@@ -39,65 +39,48 @@
             </div>
         </div>
     </div>
-<!-- 
+   
     <div class="card chart-card wide">
         <div class="card-header">
-            <h3>Threat Trends</h3>
-            <span>Last 30 days</span>
+            <h3>Traffic Analysis</h3>
+            <span>Last 12 Hours</span>
         </div>
-        <canvas id="threatTrendsChart" style="height: 300px;"></canvas>
+        <canvas id="trafficAnalysisChart"></canvas>
+        <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+            <div>
+                <span style="color: #4caf50;">Normal Traffic</span>: <span id="normalTraffic">1.423 GB</span> 
+            </div>
+            <div>
+                <span style="color: #ffc107;">Suspicious</span>: <span id="suspiciousTraffic">62 MB</span> 
+            </div>
+            <div>
+                <span style="color: #dc3545;">Malicious</span>: <span id="maliciousTraffic">12 MB</span>
+            </div>
+        </div>
     </div>
-    <div class="card chart-card">
-        <div class="card-header">
-            <h3>System Metrics</h3>
-            <div class="chart-controls">
-                <button class="active">CPU</button>
-                <button>Memory</button>
-                <button>Network</button>
-            </div>
-        </div>
-        <canvas id="systemMetricsChart" style="height: 300px;"></canvas>
-    </div> -->
- <!-- New Traffic Analysis Card -->
-        <div class="card chart-card wide">
-            <div class="card-header">
-                <h3>Traffic Analysis</h3>
-                <span>Last 12 Hours</span>
-            </div>
-            <canvas id="trafficAnalysisChart"></canvas>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <div>
-                    <span style="color: #4caf50;">Normal Traffic</span>: <span id="normalTraffic">1.423 GB</span> (+5.2%
-                    from average)
+    <div class="grid-row">
+        <div class="grid-item-half">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Alert Severity Distribution</h3>
                 </div>
-                <div>
-                    <span style="color: #ffc107;">Suspicious</span>: <span id="suspiciousTraffic">62 MB</span> (+12%
-                    from average)
-                </div>
-                <div>
-                    <span style="color: #dc3545;">Malicious</span>: <span id="maliciousTraffic">12 MB</span> (-3.5% from
-                    average)
+                <div class="card-body chart-container-medium">
+                    <canvas id="alertSeverityDistributionChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- New Global Threat Map Card -->
-        <div class="card chart-card">
-            <div class="card-header">
-                <h3>Global Threat Map</h3>
-                <span>Last 24 Hours</span>
-            </div>
-            <div style="text-align: center; padding: 20px;">
-                <span style="font-size: 2em;">🌐</span>
-                <p>Interactive threat map visualization would appear here</p>
-                <p>Showing global attack origins and targeted systems</p>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <div>Active Attacks: <span id="activeAttacks">24</span></div>
-                <div>Countries: <span id="countries">8</span></div>
-                <div>Total Today: <span id="totalToday">156</span></div>
+        <div class="grid-item-half">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Overall Protocol Distribution</h3>
+                </div>
+                <div class="card-body chart-container-medium">
+                    <canvas id="overallProtocolDistributionChart"></canvas>
+                </div>
             </div>
         </div>
+    </div>
+    </div>
     <div class="card table-card full-width">
         <div class="card-header">
             <h3>Recent Alerts</h3>
@@ -116,7 +99,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    </tbody>
+                </tbody>
             </table>
         </div>
     </div>

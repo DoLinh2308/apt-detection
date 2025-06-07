@@ -21,8 +21,7 @@ const PREDICTIONS_FILE = path.join(RESULTS_DIR, 'network_flows_Predictions.csv')
 const SUSPICIOUS_FILE = path.join(RESULTS_DIR, 'Suspicious_network_flows_Predictions.csv');
 const TRAFFIC_ANALYSIS_FILE = path.join(RESULTS_DIR, 'traffic_analysis.csv');
 const GLOBAL_THREAT_MAP_FILE = path.join(RESULTS_DIR, 'global_threat_map.csv');
-
-const MAX_SCAN_HISTORY_LENGTH = 20;
+const MAX_SCAN_HISTORY_LENGTH = 7;
 
 // --- GLOBAL VARIABLES ---
 let mainWindow;
@@ -136,10 +135,7 @@ const SettingsHandler = {
                 telegramBotToken: '', telegramChatId: ''
             };
         }
-        // For security, never return emailSenderPassword directly via general load if it's for UI display.
-        // The UI should manage password fields separately (e.g., only accept new input).
-        // However, for internal use (like passing to Python - if we did that), loading it is fine.
-        // The `onInitialSettings` and `onSettingsUpdated` will have password removed before sending to renderer.
+
         return {
             theme: store.get('theme', 'dark'),
             scanHistory: store.get('scanHistory', []),
@@ -189,7 +185,7 @@ const AppWindow = {
                 preload: path.join(BASE_DIR, 'frontend/preload.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
-                devTools: !app.isPackaged
+                // devTools: !app.isPackaged
             }
         });
         mainWindow.setMenuBarVisibility(false);
@@ -229,7 +225,7 @@ const AppWindow = {
         mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximized'));
         mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-unmaximized'));
 
-        if (!app.isPackaged) mainWindow.webContents.openDevTools();
+        // if (!app.isPackaged) mainWindow.webContents.openDevTools();
     },
 
     setupIPCControls: () => {
@@ -431,7 +427,6 @@ const AnalysisRunner = {
 
         pythonProcess.stdout.on('data', (data) => {
             const message = data.toString();
-            // console.log(`Python stdout: ${message.trim()}`); // Có thể comment bớt nếu quá nhiều log
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', message);
         });
         pythonProcess.stderr.on('data', (data) => {
@@ -440,7 +435,6 @@ const AnalysisRunner = {
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', `PYTHON_ERR: ${message}`);
         });
         pythonProcess.on('close', (code, signal) => {
-            // ... (phần còn lại của listener không đổi) ...
             const wasKilledByUser = analysisManuallyStopped || signal === 'SIGTERM' || signal === 'SIGINT';
             let statusMsg = '', processSuccess = false;
 

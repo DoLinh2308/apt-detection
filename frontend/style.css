@@ -393,7 +393,7 @@ tbody tr:hover {
 }
 
 #trafficAnalysisChart {
-    height: 200px !important; /* Adjust height as needed */
+    height: 670px !important; /* Adjust height as needed */
 }
 
 #globalThreatMap {
@@ -525,4 +525,140 @@ body.light-theme .chartjs-legend li span,
 body.light-theme .chartjs-title span {
     fill: var(--text-primary) !important; /* Hoặc màu cụ thể cho chart text trên nền sáng */
     color: var(--text-primary) !important;
+}
+/* Log Page Styles */
+.log-textarea {
+    width: 100%;
+    height: 60vh; /* Adjust as needed */
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    background-color: var(--background-content-alt); /* Or another suitable var */
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+/* Alert Page Styles */
+.alert-filters {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.alert-filters label {
+    color: var(--text-secondary);
+}
+.alert-filters select, .alert-filters button {
+    padding: 8px 12px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+.alert-filters button:hover {
+    background-color: var(--button-hover-bg);
+}
+
+
+/* Styles for table responsiveness and appearance */
+.table-responsive {
+    overflow-x: auto; /* Allows table to scroll horizontally on small screens */
+}
+
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px; /* Added margin */
+    font-size: 0.9em;
+    min-width: 800px; /* Minimum width before horizontal scroll appears */
+}
+
+.styled-table thead tr {
+    background-color: var(--primary-color); /* Or var(--table-header-bg) if you define one */
+    color: #ffffff; /* Or var(--table-header-text) */
+    text-align: left;
+    font-weight: bold;
+}
+
+.styled-table th,
+.styled-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary); /* Ensure text is visible */
+}
+
+.styled-table tbody tr {
+    background-color: var(--background-content); /* Default row color */
+}
+
+.styled-table tbody tr:nth-of-type(even) { /* Style for even rows */
+    background-color: var(--background-content-alt); /* Slightly different for zebra striping */
+}
+
+.styled-table tbody tr:last-of-type {
+    border-bottom: 2px solid var(--primary-color); /* Or var(--table-footer-border) */
+}
+
+.styled-table tbody tr:hover {
+    background-color: var(--hover-bg-color); /* var(--row-hover-bg) */
+}
+
+.severity-badge {
+    padding: 0.3em 0.6em;
+    border-radius: 0.25em;
+    font-size: 0.8em;
+    color: #fff;
+    display: inline-block; /* Ensures padding and background apply correctly */
+}
+/* Define severity colors based on your CSS variables */
+.severity-critical { background-color: var(--critical-color); }
+.severity-high { background-color: var(--high-color); }
+.severity-medium { background-color: var(--medium-color); }
+.severity-low { background-color: var(--low-color); }
+.severity-info { background-color: var(--info-color); /* Define --info-color in :root */}
+
+
+/* Ensure chart containers have a defined height */
+.chart-container-medium {
+    height: 300px; /* Or your preferred size */
+    position: relative; /* Important for Chart.js responsiveness */
+}
+
+/* Icon placeholders (replace with actual icons or font icons) */
+.icon-alert::before { content: "⚠️"; margin-right: 5px;} /* Placeholder */
+.icon-log::before { content: "📋"; margin-right: 5px;}   /* Placeholder */
+/* Add your other icon styles here if not already present */
+.icon-dashboard::before { content: "📊"; margin-right: 5px; }
+.icon-network::before { content: "🌐"; margin-right: 5px; }
+.icon-settings::before { content: "⚙️"; margin-right: 5px; }
+.icon-minimize::before { content:"➖";}
+.icon-maximize::before { content:"🔲";}
+.icon-restore::before { content:"🔳";}
+.icon-close::before { content:"❌";}
+
+
+/* Add to :root or :root.dark-theme / .light-theme */
+/* :root {
+    --info-color: #17a2b8;
+} */
+/* For dark theme */
+:root.dark-theme {
+    /* ... other dark theme variables ... */
+    --info-color: #36a2eb; /* Lighter blue for dark theme */
+    --button-bg: #4a5568; /* Darker button */
+    --button-text: #e2e8f0;
+    --button-hover-bg: #2d3748;
+}
+
+/* For light theme */
+:root:not(.dark-theme), body:not(.dark-theme) .sidebar, body:not(.dark-theme) .app-header /* More specific for light */ {
+    /* ... other light theme variables ... */
+    --info-color: #007bff; /* Standard blue for light theme */
+    --button-bg: #f0f0f0; /* Lighter button */
+    --button-text: #333;
+    --button-hover-bg: #e0e0e0;
 }

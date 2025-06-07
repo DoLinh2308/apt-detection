@@ -3,8 +3,8 @@ import os
 
 # --- Model and Scaler Paths ---
 # Use paths relative to the backend directory or absolute paths
-MODEL_PATH = r'model/random_forest_model.pkl'
-SCALER_PATH = r'model/dataset/working2/scaler.pkl'
+MODEL_PATH = r'D:/Do_an_tot_nghiep/apt-detection/ai_model/dataset/working2/xgboost_model.pkl'
+SCALER_PATH = r'D:/Do_an_tot_nghiep/apt-detection/ai_model/dataset/working2/scaler.pkl'
 
 # Get the path to the 'backend' directory (assuming config.py is in prediction_module)
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
