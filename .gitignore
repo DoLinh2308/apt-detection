@@ -1,7 +1,9 @@
 /ai_model/dataset
 /venv
 /.vscode
-/.env
-/.venv
 __pycache__
 /node_modules
+/.venv
+dist/
+.env
+.env.*

@@ -1,14 +1,28 @@
 # prediction_module/config.py
 import os
+from pathlib import Path
 
 # --- Model and Scaler Paths ---
 # Use paths relative to the backend directory or absolute paths
-MODEL_PATH = r'D:/Do_an_tot_nghiep/apt-detection/ai_model/dataset/working2/xgboost_model.pkl'
-SCALER_PATH = r'D:/Do_an_tot_nghiep/apt-detection/ai_model/dataset/working2/scaler.pkl'
 
-# Get the path to the 'backend' directory (assuming config.py is in prediction_module)
+current_file_path = Path(__file__).resolve()  # config.py
+CONFIGS_DIR = current_file_path.parent        
+BACKEND_DIR = CONFIGS_DIR.parent              
+PROJECT_ROOT = BACKEND_DIR.parent             
+
+CURRENT_FILE_PATH = Path(__file__).resolve()
+
+PROJECT_ROOT = CURRENT_FILE_PATH.parent.parent.parent
+
+MODEL_PATH = PROJECT_ROOT / 'model' / 'xgboost_model.pkl'
+SCALER_PATH = PROJECT_ROOT / 'model' / 'scaler.pkl'
+
+BACKEND_DIR = CURRENT_FILE_PATH.parent.parent # /path/to/your_project/backend
+
+NETWORK_FLOWS_CSV_PATH = BACKEND_DIR / 'prediction_module' / 'network_flows.csv'
+
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RESULTS_DIR = os.path.join(BACKEND_DIR, 'results') # Define results directory
+RESULTS_DIR = os.path.join(BACKEND_DIR, 'results') 
 
 # --- Input/Output CSV Paths ---
 # Input CSV is the output of the capture module
